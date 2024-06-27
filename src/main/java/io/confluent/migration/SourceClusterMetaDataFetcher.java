@@ -42,7 +42,7 @@ public class SourceClusterMetaDataFetcher {
 
 
     public static void main(String[] args) throws ExecutionException, InterruptedException, TimeoutException {
-        System.out.println(" #### Starting the Source Cluster MetaData Extractor Tool !! ### ");
+        System.out.println(" #### Starting the Utility in Source Cluster MetaData Extractor Mode !! ### ");
         System.out.println("Enter absolute path of the source cluster properties file: ");
         System.out.println();
         System.out.println();

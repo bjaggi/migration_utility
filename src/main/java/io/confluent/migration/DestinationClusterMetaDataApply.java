@@ -29,7 +29,7 @@ public class DestinationClusterMetaDataApply {
 
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
         ObjectMapper objectMapper = new ObjectMapper();
-        System.out.println(" #### Starting the Destination Cluster MetaData Application Tool !! ### ");
+        System.out.println(" #### Starting the Utility in Destination Cluster MetaData Application Mode !! ### ");
         System.out.println("Enter absolute path of the destination cluster properties file: ");
         System.out.println();
         System.out.println();
