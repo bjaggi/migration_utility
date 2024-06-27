@@ -1,0 +1,109 @@
+---
+version: '2'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.0.1
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+  broker:
+    image: confluentinc/cp-kafka:7.0.1
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - 9092:9092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://broker:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
+  connect:
+    image: confluentinc/cp-kafka-connect-base:5.5.0
+    hostname: connect
+    container_name: connect
+    ports:
+      - "8083:8083"
+    volumes:
+      - /tmp/kconnect-plugins:/data/connectors
+    environment:
+      CONNECT_PLUGIN_PATH: '/data/connectors,/usr/share/java,/usr/share/confluent-hub-components/'
+      CONNECT_BOOTSTRAP_SERVERS: localhost:9092
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: "connect"
+      CONNECT_CONFIG_STORAGE_TOPIC: demo-connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: demo-connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: demo-connect-status
+      CONNECT_REPLICATION_FACTOR: 3
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
+
+
+      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
+      CONNECT_VALUE_CONVERTER: "io.confluent.connect.avro.AvroConverter"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+
+      CONNECT_INTERNAL_KEY_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_INTERNAL_VALUE_CONVERTER: "org.apache.kafka.connect.json.JsonConverter"
+      CONNECT_REST_ADVERTISED_HOST_NAME: "connect"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+      CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
+      CONNECT_LOG4J_LOGGERS: org.reflections=ERROR
+      # CLASSPATH required due to CC-2422
+      #CLASSPATH: /usr/share/java/monitoring-interceptors/monitoring-interceptors-6.0.0.jar
+      # Connect worker
+#      CONNECT_SECURITY_PROTOCOL: SASL_SSL
+#      CONNECT_SASL_JAAS_CONFIG: $SASL_JAAS_CONFIG
+#      CONNECT_SASL_MECHANISM: PLAIN
+      # Connect producer
+      CONNECT_PRODUCER_SECURITY_PROTOCOL: SASL_SSL
+      CONNECT_PRODUCER_SASL_JAAS_CONFIG: org.apache.kafka.common.security.plain.PlainLoginModule required username="EQZQ4BDSNL5IIAEL" password="ixocLTb4tSIiegn8zV2gw6fIUBiibK7/zGTM7gkKT17/grZ84QJRe6fqJ3SVfJ1A";
+      CONNECT_PRODUCER_SASL_MECHANISM: PLAIN
+      # Connect consumer
+      CONNECT_CONSUMER_SECURITY_PROTOCOL: PLAINTEXT
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: localhost:8081
+
+    command:
+      - bash
+      - -c
+      - |
+        echo " Jaggi Installing connector plugins "
+        confluent-hub install --no-prompt confluentinc/kafka-connect-replicator:5.5.0
+        # Launch Kafka Connect
+        /etc/confluent/docker/run &
+        #
+        # Wait for Kafka Connect listener
+        echo "Waiting for Kafka Connect to start listening on localhost ⏳"
+        while : ; do
+         curl_status=$$(curl -s -o /dev/null -w %{http_code} http://localhost:8083/connectors)
+         echo -e $$(date) " Kafka Connect listener HTTP state: " $$curl_status " (waiting for 200)"
+         if [ $$curl_status -eq 200 ] ; then
+           break
+         fi
+         sleep 5
+        done
+
+        echo -e "\n--\n+> Starting Replicator  source"
+        curl -s -X PUT -H  "Content-Type:application/json" http://localhost:8083/connectors/source-datagen-01/config \
+           -d '{
+              "connector.class": "io.confluent.connect.replicator.ReplicatorSourceConnector",
+              "src.kafka.bootstrap.servers": "localhost:9092",
+              "src.kafka.client.id": "replicator-demo",
+              "src.kafka.security.protocol": "PLAINTEXT",
+              "dest.kafka.security.protocol": "SASL_SSL",
+              "dest.kafka.sasl.mechanism": "PLAIN",
+              "dest.kafka.sasl.jaas.config": "sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username=\"EQZQ4BDSNL5IIAEL\" password=\"ixocLTb4tSIiegn8zV2gw6fIUBiibK7/zGTM7gkKT17/grZ84QJRe6fqJ3SVfJ1A\";",
+              "dest.kafka.ssl.endpoint.identification.algorithm": "https",
+              "dest.kafka.bootstrap.servers": "pkc-ep9mm.us-east-2.aws.confluent.cloud:9092",
+              "offset.start": "connect",
+              "schema.registry.client.basic.auth.user.info": "superUser"
+        }'
+        sleep infinity
