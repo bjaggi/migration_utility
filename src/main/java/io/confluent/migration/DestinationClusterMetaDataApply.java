@@ -129,13 +129,7 @@ public class DestinationClusterMetaDataApply {
     }
 
     private static void createACLs(AdminClient adminClient, Collection<AclBinding> aclList) {
-
-        aclList.forEach(aclBinding -> {
-
-
-
-
-        });
+        adminClient.createAcls(aclList);
     }
 
     public static void createConsumerGroups(AdminClient adminClient, Map<String, List<ConsumerGroupMetdata>> cgTopicListMap, Properties destinationProperties) {
