@@ -18,10 +18,10 @@ import org.apache.kafka.common.acl.AclBinding;
 
 import java.io.File;
 import java.io.IOException;
-import java.security.acl.Acl;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static io.confluent.migration.utils.Constants.*;
 
@@ -98,7 +98,7 @@ public class DestinationClusterMetaDataApply {
 
                 break;
             case ALL_CG:
-                KafkaConsumer consumer = new KafkaConsumer(destinationProperties);
+
                 System.out.println("Enter absolute path of the Consumer Group file in the JSON format : ");
                 System.out.println();
                 System.out.println();
@@ -113,7 +113,7 @@ public class DestinationClusterMetaDataApply {
                 });
                 System.out.println(" Successfully read all topics & configs from file  :  " + cgFilePath);
 
-                createConsumerGroups(adminClient, cgTopicListMap, consumer);
+                createConsumerGroups(adminClient, cgTopicListMap, destinationProperties);
                 break;
             default:
                 System.out.println("Invalid Option, program will now exit");
@@ -138,10 +138,22 @@ public class DestinationClusterMetaDataApply {
         });
     }
 
-    public static void createConsumerGroups(AdminClient adminClient, Map<String, List<ConsumerGroupMetdata>> cgTopicListMap, KafkaConsumer consumer) {
+    public static void createConsumerGroups(AdminClient adminClient, Map<String, List<ConsumerGroupMetdata>> cgTopicListMap, Properties destinationProperties) {
+        KafkaConsumer consumer = new KafkaConsumer(destinationProperties);
+        KafkaConsumer consumerSeekLatest = new KafkaConsumer(destinationProperties);
+
+        // TODO : Fix this
+        Set<TopicPartition> partitionSet = consumerSeekLatest.assignment();
+        List<TopicPartition> topicPartitionList = partitionSet.stream().collect(Collectors.toList());
+        consumerSeekLatest.seekToBeginning(topicPartitionList);
+        Map<TopicPartition, Long> earliestOffsetMap = consumerSeekLatest.beginningOffsets(topicPartitionList);
+
+
+
         for (Map.Entry<String, List<ConsumerGroupMetdata>> entry : cgTopicListMap.entrySet()) {
             System.out.println(" Resetting Consumer Group " +entry.getKey());
             List<ConsumerGroupMetdata> consumerGroupMetdataList = entry.getValue();
+
 
             if (consumerGroupMetdataList != null && !consumerGroupMetdataList.isEmpty()) {
                 for (ConsumerGroupMetdata consumerGroupMetdata : consumerGroupMetdataList) {
@@ -149,21 +161,39 @@ public class DestinationClusterMetaDataApply {
                     TopicPartition topicPartition = new TopicPartition(consumerGroupMetdata.getTopicName(), consumerGroupMetdata.getPartitionNum());
                     Map<TopicPartition, Long> timestampsForSearch = new HashMap<>();
                     timestampsForSearch.put(topicPartition, consumerGroupMetdata.getTimestamp());
-                    // Set the timestamp ( this is key for migration/reset between the 2 DCs's)
-                    OffsetAndMetadata timestampForReset = new OffsetAndMetadata( consumerGroupMetdata.getTimestamp());
 
-                    // Task 1 : Fetch offsets based on the timestamp
+
+                    // ***Task 1*** : Fetch offsets based on the timestamp
                     Map<TopicPartition, OffsetAndTimestamp> destPartitionOffsetMap = consumer.offsetsForTimes( timestampsForSearch);
                     if( destPartitionOffsetMap != null && destPartitionOffsetMap.get(topicPartition)!= null ) {
-                        System.out.println(destPartitionOffsetMap);
+                        System.out.println(" Source Cluster Timestamp of "+ consumerGroupMetdata.getTimestamp()+ " , resulted in following on the destination cluster : " + destPartitionOffsetMap);
                         long offsetToSeek = destPartitionOffsetMap.get(topicPartition).offset();
 
-
-                        // Task 2 : Resetting the consumer group ID based on the timestamp
+                        // ***Task 2*** : Resetting the consumer group ID based on the timestamp
                         Map<TopicPartition, OffsetAndMetadata> partitionTimestampMap = new HashMap<>();
                         partitionTimestampMap.put(topicPartition, new OffsetAndMetadata(offsetToSeek));
 
                         AlterConsumerGroupOffsetsResult result = adminClient.alterConsumerGroupOffsets(consumerGroupMetdata.getConsumerGroupName(), partitionTimestampMap);
+                        try {
+                            result.all().get();
+                            System.out.println("Reset completed for : " + destPartitionOffsetMap);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        } catch (ExecutionException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }else{
+                        System.err.println(" ERROR : resetting partition    "+topicPartition + "  to the timestamp "+consumerGroupMetdata.getTimestamp());
+
+
+                        Map<TopicPartition, OffsetAndMetadata> partitionTimestampMap = new HashMap<>();
+                        long earliestOffset = earliestOffsetMap.get(topicPartition)==null?0:earliestOffsetMap.get(topicPartition);
+                        partitionTimestampMap.put(topicPartition, new OffsetAndMetadata(earliestOffset));
+                        AlterConsumerGroupOffsetsResult result = adminClient.alterConsumerGroupOffsets(consumerGroupMetdata.getConsumerGroupName(), partitionTimestampMap);
+                        System.out.println("Probably no data available on this partition ?, please reset this manually "+ consumerGroupMetdata.getTimestamp());
+                        System.out.println("Reseting the CG to earliest, this may result in duplicates.  Earliest offset is :  "+ earliestOffset );
+
+
                         try {
                             result.all().get();
                         } catch (InterruptedException e) {
@@ -171,9 +201,7 @@ public class DestinationClusterMetaDataApply {
                         } catch (ExecutionException e) {
                             throw new RuntimeException(e);
                         }
-                    }else{
-                        System.err.println(" ERROR : resetting   "+topicPartition);
-                        System.out.println("Probably Nothing is read from this partition ?, please reset this manually "+ consumerGroupMetdata.getTimestamp());
+
                     }
                 }
             }
