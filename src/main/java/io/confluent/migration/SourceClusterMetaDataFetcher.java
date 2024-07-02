@@ -39,7 +39,7 @@ public class SourceClusterMetaDataFetcher {
     static Map< String,TopicMetadata> topicMetadataMap = new HashMap<>();
     static Map< String, List<ConsumerGroupMetdata>> cgMetadataListMap = new HashMap<>();
     static ObjectMapper objectMapper = new ObjectMapper();
-
+    static Map<ConsumerGroupMetdata, Long> sortedCGMap = new HashMap<>();
 
 
     public static void main(String[] args) throws ExecutionException, InterruptedException, TimeoutException {
@@ -87,6 +87,7 @@ public class SourceClusterMetaDataFetcher {
 
                  exportAllConsumerGroups(adminClient, sourceProperties, cgCsv);
                  writeCgsToFile(cgMetadataListMap);
+                 writeSortedCgsToFile(sortCG(sortedCGMap));
                 break;
             default:
                 System.out.println("Invalid Option, program will now exit");
@@ -110,8 +111,7 @@ public class SourceClusterMetaDataFetcher {
         System.out.println("####### ALL CONSUMER GROUPS ##########");
         KafkaConsumer consumerConsumerOffsets = new KafkaConsumer(sourceProperties);
         KafkaConsumer consumer = new KafkaConsumer(sourceProperties);
-        final Map<ConsumerGroupMetdata, Long> sortedCGMap = new HashMap<>();
-        List<Map.Entry<String,Integer>> sortedCGList = new ArrayList<>();
+
         consumerConsumerOffsets.subscribe(Arrays.asList("__consumer_offsets"));
         ConsumerRecords<String, String> consumerOffsetRecords = consumerConsumerOffsets.poll(Duration.ofSeconds(5));
 
@@ -125,9 +125,9 @@ public class SourceClusterMetaDataFetcher {
         }else {
             String finalCgCsv = cgCsv;
             List<String> filtercgArray = Arrays.asList(finalCgCsv.split(","));
-            for(String filterCG : filtercgArray){
-                groupIds = groupIds.stream().filter(s -> s.equals(filterCG)).collect(Collectors.toList());;
-            }
+            //for(String filterCG : filtercgArray){
+                groupIds = groupIds.stream().filter(s -> filtercgArray.contains(s)).collect(Collectors.toList());;
+            //}
         }
 
         groupIds.forEach(groupId -> {
@@ -186,13 +186,11 @@ public class SourceClusterMetaDataFetcher {
                         cgMetadata.setPartitionNum(topicPartition.partition());
                         cgMetadata.setTimestamp(0);
                         System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + " , TimeStamp of last committed offset :  ?" );
-
-
                         cgMetadataList.add(cgMetadata);
                     }
 
                 });
-                writeSortedCgsToFile(sortCG(sortedCGMap));
+                cgMetadataListMap.put(groupId, cgMetadataList);
 
                 System.out.println();
                 System.out.println();
@@ -204,6 +202,7 @@ public class SourceClusterMetaDataFetcher {
             }
             //System.out.println(list);
         });
+
     }
 
     private Map<TopicPartition, Long> computeLags(
