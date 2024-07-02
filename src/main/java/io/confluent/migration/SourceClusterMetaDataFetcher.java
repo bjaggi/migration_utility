@@ -24,6 +24,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import static io.confluent.migration.utils.Constants.*;
+import static io.confluent.migration.utils.SortCG.sortCG;
 
 //import kafka.coordinator.group.OffsetKey;
 //import org.apache.kafka.clients.producer.ProducerRecord;
@@ -109,7 +110,8 @@ public class SourceClusterMetaDataFetcher {
         System.out.println("####### ALL CONSUMER GROUPS ##########");
         KafkaConsumer consumerConsumerOffsets = new KafkaConsumer(sourceProperties);
         KafkaConsumer consumer = new KafkaConsumer(sourceProperties);
-
+        final Map<ConsumerGroupMetdata, Long> sortedCGMap = new HashMap<>();
+        List<Map.Entry<String,Integer>> sortedCGList = new ArrayList<>();
         consumerConsumerOffsets.subscribe(Arrays.asList("__consumer_offsets"));
         ConsumerRecords<String, String> consumerOffsetRecords = consumerConsumerOffsets.poll(Duration.ofSeconds(5));
 
@@ -119,29 +121,37 @@ public class SourceClusterMetaDataFetcher {
         cgCsv = cgCsv.replace("\n", "");
         cgCsv = cgCsv.trim();
         if("*".equals(cgCsv) || "".equals(cgCsv) ){
-            // No filter, prin all
+            // No filter, print all
         }else {
             String finalCgCsv = cgCsv;
-            groupIds = groupIds.stream().filter(s -> s.equals(finalCgCsv)).collect(Collectors.toList());;
+            List<String> filtercgArray = Arrays.asList(finalCgCsv.split(","));
+            for(String filterCG : filtercgArray){
+                groupIds = groupIds.stream().filter(s -> s.equals(filterCG)).collect(Collectors.toList());;
+            }
         }
 
         groupIds.forEach(groupId -> {
             System.out.println("#### SUMMARIZING ALL CONSUMER GROUP : " + groupId);
-
             try {
                 Map<TopicPartition, OffsetAndMetadata> cgTopicMetadataMap = adminClient.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
                 List<ConsumerGroupMetdata> cgMetadataList = new ArrayList<>();
-                Map<TopicPartition, Long>  logEndOffsetMap = consumer.endOffsets(cgTopicMetadataMap.keySet());
-                consumer.assign(Arrays.asList(cgTopicMetadataMap.keySet().toArray()));
+                ArrayList partitionList = new ArrayList<>(cgTopicMetadataMap.keySet());
+                Map<TopicPartition, Long>  logEndOffsetMap = consumer.endOffsets(partitionList);
+                consumer.assign(partitionList);
 
                 cgTopicMetadataMap.forEach((topicPartition, offsetAndMetadata) -> {
-
                     //System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + " , Metadata :  "+offsetAndMetadata.metadata() );
+                    long currentOffset = offsetAndMetadata.offset();
+                    long longEndOffset = logEndOffsetMap.get(topicPartition.partition())==null? 0 : logEndOffsetMap.get(topicPartition.partition());
+                    long consumerLag = longEndOffset-currentOffset;
+
                     ConsumerGroupMetdata cgMetadata = new ConsumerGroupMetdata();
                     cgMetadata.setConsumerGroupName(groupId);
                     cgMetadata.setTopicName(topicPartition.topic());
                     cgMetadata.setPartitionNum(topicPartition.partition());
-                    cgMetadata.setOffsetNumber(offsetAndMetadata.offset());
+                    cgMetadata.setCurrentOffsetNumber(currentOffset);
+                    cgMetadata.setLogEndOffsetNumber(longEndOffset);
+                    cgMetadata.setConsumerLag(longEndOffset-currentOffset);
 
                     consumer.seek(topicPartition, offsetAndMetadata.offset());
                     //consumer.position(topicPartition);
@@ -154,6 +164,9 @@ public class SourceClusterMetaDataFetcher {
                             actualList.add((ConsumerRecord)iterator.next());
                         }
                         ConsumerRecord record = actualList.get(actualList.size()-1);
+
+
+                        sortedCGMap.put(cgMetadata, consumerLag);
                         System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + " , TimeStamp of last committed offset :  "+record.timestamp() );
 
 //                        RecordMetaData recordMetaData = new RecordMetaData();
@@ -161,15 +174,15 @@ public class SourceClusterMetaDataFetcher {
 //                        recordMetaData.setPartition(topicPartition);
 //                        recordMetaData.setTimestamp(record.timestamp());
 
-                        cgMetadata.setOffsetNumber(offsetAndMetadata.offset());
+                        cgMetadata.setCurrentOffsetNumber(offsetAndMetadata.offset());
                         cgMetadata.setTimestamp(record.timestamp());
                         //recordMetaDataMap.put(record.partition(),recordMetaData );
                         cgMetadataList.add(cgMetadata);
-                        System.out.println( "CG Name : "+groupId + " Topic Name : "+topicPartition.topic()+ " Partition : "+topicPartition.partition() + " committed offset "+cgMetadata.getOffsetNumber() + ", timestamp :"+cgMetadata.getTimestamp());
+                        System.out.println( "CG Name : "+groupId + " Topic Name : "+topicPartition.topic()+ " Partition : "+topicPartition.partition() + " committed offset "+cgMetadata.getCurrentOffsetNumber() + ", timestamp :"+cgMetadata.getTimestamp());
 
                     }else{
                         //TODO
-                        cgMetadata.setOffsetNumber(offsetAndMetadata.offset());
+                        cgMetadata.setCurrentOffsetNumber(offsetAndMetadata.offset());
                         cgMetadata.setPartitionNum(topicPartition.partition());
                         cgMetadata.setTimestamp(0);
                         System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + " , TimeStamp of last committed offset :  ?" );
@@ -179,7 +192,8 @@ public class SourceClusterMetaDataFetcher {
                     }
 
                 });
-                cgMetadataListMap.put(groupId, cgMetadataList);
+                writeSortedCgsToFile(sortCG(sortedCGMap));
+
                 System.out.println();
                 System.out.println();
                 System.out.println();
@@ -190,6 +204,19 @@ public class SourceClusterMetaDataFetcher {
             }
             //System.out.println(list);
         });
+    }
+
+    private Map<TopicPartition, Long> computeLags(
+            Map<TopicPartition, Long> consumerGrpOffsets,
+            Map<TopicPartition, Long> producerOffsets) {
+        Map<TopicPartition, Long> lags = new HashMap<>();
+        for (Map.Entry<TopicPartition, Long> entry : consumerGrpOffsets.entrySet()) {
+            Long producerOffset = producerOffsets.get(entry.getKey());
+            Long consumerOffset = consumerGrpOffsets.get(entry.getKey());
+            long lag = Math.abs(producerOffset - consumerOffset);
+            lags.putIfAbsent(entry.getKey(), lag);
+        }
+        return lags;
     }
 
     private static void exportAllTopics(AdminClient adminClient) throws ExecutionException, InterruptedException {
@@ -295,6 +322,18 @@ public class SourceClusterMetaDataFetcher {
             throw new RuntimeException(e);
         }
     }
+
+    private static void writeSortedCgsToFile(ArrayList<ConsumerGroupMetdata> sortedcgMetadataList) {
+        //objectMapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
+        try {
+            objectMapper
+                    .writerWithDefaultPrettyPrinter()
+                    .writeValue(new File("source_cluster_CG_sorted.json"), sortedcgMetadataList);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private static void writeTopicsToFile() {
         //objectMapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
         try {

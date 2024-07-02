@@ -5,7 +5,18 @@ public class ConsumerGroupMetdata {
     String consumerGroupName;
     String topicName;
     int partitionNum;
-    long offsetNumber;
+    long currentOffsetNumber;
+    long logEndOffsetNumber;
+
+    public long getConsumerLag() {
+        return consumerLag;
+    }
+
+    public void setConsumerLag(long consumerLag) {
+        this.consumerLag = consumerLag;
+    }
+
+    long consumerLag;
     long timestamp ;
 
     public String getTopicName() {
@@ -24,12 +35,12 @@ public class ConsumerGroupMetdata {
         this.partitionNum = partitionNum;
     }
 
-    public long getOffsetNumber() {
-        return offsetNumber;
+    public long getCurrentOffsetNumber() {
+        return currentOffsetNumber;
     }
 
-    public void setOffsetNumber(long offsetNumber) {
-        this.offsetNumber = offsetNumber;
+    public void setCurrentOffsetNumber(long currentOffsetNumber) {
+        this.currentOffsetNumber = currentOffsetNumber;
     }
 
     public long getTimestamp() {
@@ -47,6 +58,12 @@ public class ConsumerGroupMetdata {
         this.consumerGroupName = consumerGroupName;
     }
 
+    public long getLogEndOffsetNumber() {
+        return logEndOffsetNumber;
+    }
 
+    public void setLogEndOffsetNumber(long logEndOffsetNumber) {
+        this.logEndOffsetNumber = logEndOffsetNumber;
+    }
 
 }
