@@ -51,12 +51,24 @@ public class SourceClusterMetaDataFetcher {
         Scanner scanner = new Scanner(System.in);
 
         String absolutePath = scanner.nextLine();
+        if(absolutePath.trim().equals(""))
+            absolutePath="/Users/bjaggi/confluent/migration_utility/src/main/resources/sourcecluster.properties";
+
         System.out.println(" Reading properties from file :  " + absolutePath);
         System.out.println(".");
         System.out.println("..");
         System.out.println("...");
         //Properties sourceProperties = KafkaUtils.getSourceClusterConfigs("/Users/bjaggi/confluent/OffsetTranslation/src/main/resources/sourcecluster.properties");
         Properties sourceProperties = KafkaUtils.getSourceClusterConfigs(absolutePath);
+        // FOR JPMC
+        if(System.getenv("KRBCONFIG") != null && System.getenv("KRB5CCNAME")!= null) {
+            System.setProperty("java.security.krb5.conf", System.getenv("KRBCONFIG") );
+            System.setProperty("oracle.net.kerberos5_cc_name",System.getenv("KRB5CCNAME"));
+        } else {
+            System.err.println(" ***KRBCONFIG & KRB5CCNAME are not set! ");
+        }
+
+
         AdminClient adminClient = AdminClient. create(sourceProperties);
         System.out.println(" Successfully created Admin Client based on the input file!!" );
         System.out.println();
@@ -142,32 +154,36 @@ public class SourceClusterMetaDataFetcher {
                 cgTopicMetadataMap.forEach((topicPartition, offsetAndMetadata) -> {
                     //System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + " , Metadata :  "+offsetAndMetadata.metadata() );
                     long currentOffset = offsetAndMetadata.offset();
-                    long longEndOffset = logEndOffsetMap.get(topicPartition.partition())==null? 0 : logEndOffsetMap.get(topicPartition.partition());
+                    long longEndOffset = logEndOffsetMap.get(topicPartition)==null? 0 : logEndOffsetMap.get(topicPartition);
                     long consumerLag = longEndOffset-currentOffset;
 
                     ConsumerGroupMetdata cgMetadata = new ConsumerGroupMetdata();
+                    ConsumerRecord record ;
                     cgMetadata.setConsumerGroupName(groupId);
                     cgMetadata.setTopicName(topicPartition.topic());
                     cgMetadata.setPartitionNum(topicPartition.partition());
                     cgMetadata.setCurrentOffsetNumber(currentOffset);
                     cgMetadata.setLogEndOffsetNumber(longEndOffset);
                     cgMetadata.setConsumerLag(longEndOffset-currentOffset);
-
+                    if(longEndOffset !=0){
                     consumer.seek(topicPartition, offsetAndMetadata.offset());
                     //consumer.position(topicPartition);
                     ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(20));
                     //for (ConsumerRecord record : records) {
-                    if(records != null && !records.isEmpty()){
+                    if(records != null && !records.isEmpty()) {
                         List<ConsumerRecord> actualList = new ArrayList<ConsumerRecord>();
                         Iterator iterator = records.iterator();
                         while (iterator.hasNext()) {
-                            actualList.add((ConsumerRecord)iterator.next());
+                            actualList.add((ConsumerRecord) iterator.next());
                         }
-                        ConsumerRecord record = actualList.get(actualList.size()-1);
-
+                        // take the latest message in the record list
+                        record = actualList.get(actualList.size() - 1);
+                        cgMetadata.setTimestamp(record.timestamp());
+                        System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + ",  Lag : "+ (logEndOffsetMap.get(topicPartition)-offsetAndMetadata.offset()) + " , TimeStamp of last committed offset :  "+record.timestamp() );
+                    }
 
                         sortedCGMap.put(cgMetadata, consumerLag);
-                        System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + " , TimeStamp of last committed offset :  "+record.timestamp() );
+
 
 //                        RecordMetaData recordMetaData = new RecordMetaData();
 //                        recordMetaData.setOffset(offsetAndMetadata.offset());
@@ -175,17 +191,17 @@ public class SourceClusterMetaDataFetcher {
 //                        recordMetaData.setTimestamp(record.timestamp());
 
                         cgMetadata.setCurrentOffsetNumber(offsetAndMetadata.offset());
-                        cgMetadata.setTimestamp(record.timestamp());
+
                         //recordMetaDataMap.put(record.partition(),recordMetaData );
                         cgMetadataList.add(cgMetadata);
-                        System.out.println( "CG Name : "+groupId + " Topic Name : "+topicPartition.topic()+ " Partition : "+topicPartition.partition() + " committed offset "+cgMetadata.getCurrentOffsetNumber() + ", timestamp :"+cgMetadata.getTimestamp());
+                        System.out.println( "CG Name : "+groupId + " Topic Name : "+topicPartition.topic()+ " Partition : "+topicPartition.partition() + " committed offset "+cgMetadata.getCurrentOffsetNumber() +  ", Log end Offset : "+ longEndOffset + " , Lag : "+ (consumerLag) + ", timestamp :"+cgMetadata.getTimestamp());
 
                     }else{
                         //TODO
                         cgMetadata.setCurrentOffsetNumber(offsetAndMetadata.offset());
                         cgMetadata.setPartitionNum(topicPartition.partition());
                         cgMetadata.setTimestamp(0);
-                        System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + " , TimeStamp of last committed offset :  ?" );
+                        System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ longEndOffset+ " , Lag :" + consumerLag + " , TimeStamp of last committed offset :  ?" );
                         cgMetadataList.add(cgMetadata);
                     }
 
@@ -354,7 +370,7 @@ public class SourceClusterMetaDataFetcher {
 //                    new AccessControlEntryFilter("User:" + username, null, AclOperation.ANY, AclPermissionType.ANY));
             System.out.println("####### FOLLOWING ACL's WERE FOUND  ####### :");
             AclBindingFilter any = new AclBindingFilter(
-                    new ResourcePatternFilter(ResourceType.TOPIC, null, PatternType.ANY),
+                    new ResourcePatternFilter(ResourceType.ANY, null, PatternType.ANY),
                     new AccessControlEntryFilter(null, null, AclOperation.ANY, AclPermissionType.ANY));
 
             return adminClient.describeAcls(any).values().get();
