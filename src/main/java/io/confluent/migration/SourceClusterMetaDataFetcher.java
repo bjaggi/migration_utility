@@ -92,12 +92,33 @@ public class SourceClusterMetaDataFetcher {
                  writeAclsToFile(allAcls);
                  break;
             case ALL_CG:
+                boolean inclusiveFilterBool = false;
                 System.out.println(" Enter all Consumer Group names(comma seperated) for extraction, enter * for all groups ");
                 scanner.nextLine();
-                String cgCsv = scanner.nextLine();
-                System.out.println(" You chose : "+ cgCsv);
+                String cgCsvFilter = scanner.nextLine();
+                System.out.println(" You chose cg filter string as : "+ cgCsvFilter);
+                System.out.println();
+                System.out.println();
+                System.out.println(" Enter 'I' or 'ENTER' for inclusive filter and 'E' for exclusive filter ");
+                String inclusiveExclusiveFilter = scanner.nextLine();
 
-                 exportAllConsumerGroups(adminClient, sourceProperties, cgCsv);
+                inclusiveExclusiveFilter = inclusiveExclusiveFilter.trim();
+                System.out.println(" You filter was : "+ inclusiveExclusiveFilter);
+                System.out.println(" You chose CG Filter as : "+ cgCsvFilter);
+                if(inclusiveExclusiveFilter.equalsIgnoreCase("I") || inclusiveExclusiveFilter.equalsIgnoreCase("")) {
+                    inclusiveFilterBool = true;
+                    System.out.println(" Working on a Inclusive Filter with : " + cgCsvFilter);
+                }
+                else if(inclusiveExclusiveFilter.equalsIgnoreCase("E")) {
+                    inclusiveFilterBool = false;
+                    System.out.println(" Working on a Exclusive Filter with : " + cgCsvFilter);
+                }
+                else {
+                    System.err.println("Invalid Filter option, valid options are 'I' or 'E' ");
+                    System.exit(1);
+                }
+
+                 exportAllConsumerGroups(adminClient, sourceProperties, cgCsvFilter, inclusiveFilterBool);
                  writeCgsToFile(cgMetadataListMap);
                  writeSortedCgsToFile(sortCG(sortedCGMap));
                 break;
@@ -117,10 +138,10 @@ public class SourceClusterMetaDataFetcher {
 
 
 
-    private static void exportAllConsumerGroups(AdminClient adminClient, Properties sourceProperties, String cgCsv) throws ExecutionException, InterruptedException {
+    private static void exportAllConsumerGroups(AdminClient adminClient, Properties sourceProperties, String filterCgCsv, boolean inclusiveFilter ) throws ExecutionException, InterruptedException {
         System.out.println();
         System.out.println();
-        System.out.println("####### ALL CONSUMER GROUPS ##########");
+
         KafkaConsumer consumerConsumerOffsets = new KafkaConsumer(sourceProperties);
         KafkaConsumer consumer = new KafkaConsumer(sourceProperties);
 
@@ -130,20 +151,29 @@ public class SourceClusterMetaDataFetcher {
         List<String> groupIds = adminClient.listConsumerGroups().all().get().
                 stream().map(s -> s.groupId()).collect(Collectors.toList());
 
-        cgCsv = cgCsv.replace("\n", "");
-        cgCsv = cgCsv.trim();
-        if("*".equals(cgCsv) || "".equals(cgCsv) ){
+
+        filterCgCsv = filterCgCsv.replace("\n", "");
+        filterCgCsv = filterCgCsv.trim();
+        if("*".equals(filterCgCsv) || "".equals(filterCgCsv) ){
             // No filter, print all
-        }else {
-            String finalCgCsv = cgCsv;
+        }else if(inclusiveFilter) {
+            String finalCgCsv = filterCgCsv;
             List<String> filtercgArray = Arrays.asList(finalCgCsv.split(","));
-            //for(String filterCG : filtercgArray){
-                groupIds = groupIds.stream().filter(s -> filtercgArray.contains(s)).collect(Collectors.toList());;
-            //}
+            groupIds = groupIds.stream().filter(s -> filtercgArray.contains(s)).collect(Collectors.toList());;
+        } else if(!inclusiveFilter){
+            String finalCgCsv = filterCgCsv;
+            List<String> filtercgArray = Arrays.asList(finalCgCsv.split(","));
+            groupIds = groupIds.stream().filter(s -> !filtercgArray.contains(s)).collect(Collectors.toList());;
         }
 
+        System.out.println("####### WORKING ON THE FOLLOWING CONSUMER GROUPS ##########");
+        groupIds.forEach(System.out::println);
+        System.out.println();
+        System.out.println();
+        System.out.println();
+
         groupIds.forEach(groupId -> {
-            System.out.println("#### SUMMARIZING ALL CONSUMER GROUP : " + groupId);
+            System.out.println("#### SUMMARIZING CONSUMER GROUP : " + groupId);
             try {
                 Map<TopicPartition, OffsetAndMetadata> cgTopicMetadataMap = adminClient.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
                 List<ConsumerGroupMetdata> cgMetadataList = new ArrayList<>();
