@@ -1,6 +1,8 @@
 package io.confluent.migration;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.confluent.model.ConsumerGroupMetdata;
 import io.confluent.model.TopicMetadata;
 import io.confluent.migration.model.RecordMetaData;
@@ -23,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import static io.confluent.migration.DestinationClusterMetaDataApply.createACLs;
 import static io.confluent.migration.utils.Constants.*;
 import static io.confluent.migration.utils.SortCG.sortCG;
 
@@ -50,26 +53,31 @@ public class SourceClusterMetaDataFetcher {
         System.out.println();
         Scanner scanner = new Scanner(System.in);
 
-        String absolutePath = scanner.nextLine();
-        if(absolutePath.trim().equals(""))
-            absolutePath="/Users/bjaggi/confluent/migration_utility/src/main/resources/sourcecluster.properties";
+        String sourceClusterAbsolutePath = scanner.nextLine();
+        String destinationCLusterAbsolutePath = "";
+        if(sourceClusterAbsolutePath.trim().equals("")) {
+            sourceClusterAbsolutePath = "/Users/bjaggi/confluent/migration_utility/src/main/resources/sourcecluster.properties";
+            destinationCLusterAbsolutePath = "/Users/bjaggi/confluent/migration_utility/src/main/resources/destinationcluster.properties";
+        }
 
-        System.out.println(" Reading properties from file :  " + absolutePath);
+        System.out.println(" Reading properties from file :  " + sourceClusterAbsolutePath);
         System.out.println(".");
         System.out.println("..");
         System.out.println("...");
         //Properties sourceProperties = KafkaUtils.getSourceClusterConfigs("/Users/bjaggi/confluent/OffsetTranslation/src/main/resources/sourcecluster.properties");
-        Properties sourceProperties = KafkaUtils.getSourceClusterConfigs(absolutePath);
+        Properties sourceProperties = KafkaUtils.getSourceClusterConfigs(sourceClusterAbsolutePath);
+        Properties destProperties = KafkaUtils.getSourceClusterConfigs(destinationCLusterAbsolutePath);
         // FOR JPMC
-        if(System.getenv("KRBCONFIG") != null && System.getenv("KRB5CCNAME")!= null) {
-            System.setProperty("java.security.krb5.conf", System.getenv("KRBCONFIG") );
+        if(System.getenv("KRBCONFIG") != null && System.getenv("KRB5_CCNAME")!= null) {
+            System.setProperty("java.security.krb5.conf", System.getenv("KRB5_CONFIG") );
             System.setProperty("oracle.net.kerberos5_cc_name",System.getenv("KRB5CCNAME"));
         } else {
             System.err.println(" ***KRBCONFIG & KRB5CCNAME are not set! ");
         }
 
 
-        AdminClient adminClient = AdminClient. create(sourceProperties);
+        AdminClient sourceClusterAdminClient = AdminClient. create(sourceProperties);
+        AdminClient destClusterAdminClient = AdminClient. create(destProperties);
         System.out.println(" Successfully created Admin Client based on the input file!!" );
         System.out.println();
         System.out.println();
@@ -77,19 +85,20 @@ public class SourceClusterMetaDataFetcher {
 
         System.out.println("Choose one of the following actions ");
         System.out.println("Enter 1 to export all topic's as JSON : ");
-        System.out.println("Enter 2 to export ACL's as JSON : ");
+        System.out.println("Enter 2 to export ACL's as JSON & apply to destination cluster : ");
         System.out.println("Enter 3 to export Consumer Group details as JSON : ");
         int optionInt = scanner.nextInt();
 
 
         switch (optionInt) {
             case ALL_TOPICS:
-                 exportAllTopics(adminClient);
+                 exportAllTopics(sourceClusterAdminClient);
                  writeTopicsToFile();
                  break;
             case ALL_ACLS:
-                 Collection<AclBinding> allAcls = exportAllAcls(adminClient);
-                 writeAclsToFile(allAcls);
+                 List<AclBinding> allAcls = exportAllAcls(sourceClusterAdminClient);
+                 // Print ACL to file and create ACL on destination Clsuter
+                 writeAclsToFileAndCreateAcl(allAcls, destClusterAdminClient);
                  break;
             case ALL_CG:
                 boolean inclusiveFilterBool = false;
@@ -118,7 +127,7 @@ public class SourceClusterMetaDataFetcher {
                     System.exit(1);
                 }
 
-                 exportAllConsumerGroups(adminClient, sourceProperties, cgCsvFilter, inclusiveFilterBool);
+                 exportAllConsumerGroups(sourceClusterAdminClient, sourceProperties, cgCsvFilter, inclusiveFilterBool);
                  writeCgsToFile(cgMetadataListMap);
                  writeSortedCgsToFile(sortCG(sortedCGMap));
                 break;
@@ -342,13 +351,24 @@ public class SourceClusterMetaDataFetcher {
         }
     }
 
-    private static void writeAclsToFile(Collection<AclBinding> allAcls) {
+    private static void writeAclsToFileAndCreateAcl(List<AclBinding> allAcls, AdminClient adminClient) {
         try {
+
+
+
+
+
+            JsonNode myObjects = objectMapper.valueToTree(allAcls.toString());
+            //List<AclBinding> myObjects = objectMapper.readValue(allAcls.toString() ,new TypeReference<List<AclBinding>>() { } );
+            //String jsonArray = objectMapper.writeValueAsString(allAcls);
+            //objectMapper.readValue(jsonArray, new TypeReference<List<AclBinding>>() { });
+
             objectMapper
+                    .enable(SerializationFeature.INDENT_OUTPUT)
                     .writerWithDefaultPrettyPrinter()
-                    .writeValue(new File("source_cluster_acls.json"), allAcls);
-
-
+                    .writeValue(new File("source_cluster_acls.json"), myObjects);
+            allAcls.forEach(System.out::println);
+            createACLs(adminClient, allAcls);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -393,7 +413,7 @@ public class SourceClusterMetaDataFetcher {
     }
 
 
-    private static Collection<AclBinding> exportAllAcls(AdminClient adminClient) {
+    private static List<AclBinding> exportAllAcls(AdminClient adminClient) {
         try {
 //            AclBindingFilter any = new AclBindingFilter(
 //                    new ResourcePatternFilter(ResourceType.TOPIC, null, PatternType.ANY),
@@ -403,7 +423,10 @@ public class SourceClusterMetaDataFetcher {
                     new ResourcePatternFilter(ResourceType.ANY, null, PatternType.ANY),
                     new AccessControlEntryFilter(null, null, AclOperation.ANY, AclPermissionType.ANY));
 
-            return adminClient.describeAcls(any).values().get();
+            Collection<AclBinding> aclBindingList =  adminClient.describeAcls(any).values().get();
+
+
+            return  new ArrayList<>(aclBindingList);
         } catch (SecurityDisabledException sed){
             System.out.println("SecurityDisabledException: No Authorizer is configured on the broker");
             sed.printStackTrace();

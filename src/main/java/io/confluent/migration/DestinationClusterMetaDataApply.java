@@ -1,10 +1,12 @@
 package io.confluent.migration;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.confluent.migration.utils.KafkaUtils;
 import io.confluent.model.ConsumerGroupMetdata;
 import io.confluent.model.TopicMetadata;
+import org.apache.commons.io.IOUtils;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AlterConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.CreateTopicsOptions;
@@ -17,6 +19,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.acl.AclBinding;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.*;
@@ -37,6 +40,8 @@ public class DestinationClusterMetaDataApply {
         Scanner scanner = new Scanner(System.in);
 
         String absolutePath = scanner.nextLine();
+        if(absolutePath.trim().equals(""))
+            absolutePath="/Users/bjaggi/confluent/migration_utility/src/main/resources/destinationcluster.properties";
         System.out.println(" Reading properties from file :  " + absolutePath);
         System.out.println(".");
         System.out.println("..");
@@ -92,7 +97,11 @@ public class DestinationClusterMetaDataApply {
                 System.out.println(".");
                 System.out.println("..");
                 System.out.println("...");
-                Collection<AclBinding> aclList = objectMapper.readValue(new File(aclFilePath), new TypeReference<Collection<AclBinding>>() {});
+                FileInputStream fis = new FileInputStream(new File(aclFilePath));
+                String dataFromFile = IOUtils.toString(fis, "UTF-8");
+
+                JsonNode node = objectMapper.readTree(dataFromFile);
+                Collection<AclBinding> aclList = objectMapper.readValue(dataFromFile,  new TypeReference<Collection<AclBinding>>() {});
                 createACLs(adminClient, aclList);
 
 
@@ -128,8 +137,15 @@ public class DestinationClusterMetaDataApply {
 
     }
 
-    private static void createACLs(AdminClient adminClient, Collection<AclBinding> aclList) {
-        adminClient.createAcls(aclList);
+    static void createACLs(AdminClient adminClient, Collection<AclBinding> aclList) {
+        Map<AclBinding, KafkaFuture<Void>> map = adminClient.createAcls(aclList).values();
+        System.out.println();
+        System.out.println();
+        System.out.println();
+        System.out.println(" Following ACL were created on the destination Cluster ");
+        for (Map.Entry<AclBinding, KafkaFuture<Void>> entry : map.entrySet()) {
+            System.out.println(entry.getKey() + " / " + entry.getValue());
+        }
     }
 
     public static void createConsumerGroups(AdminClient adminClient, Map<String, List<ConsumerGroupMetdata>> cgTopicListMap, Properties destinationProperties) {
