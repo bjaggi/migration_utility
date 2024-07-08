@@ -13,6 +13,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.acl.*;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.SecurityDisabledException;
+import org.apache.kafka.common.quota.ClientQuotaEntity;
+import org.apache.kafka.common.quota.ClientQuotaFilter;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.resource.ResourcePatternFilter;
@@ -27,7 +29,8 @@ import java.util.stream.Collectors;
 
 import static io.confluent.migration.DestinationClusterMetaDataApply.createACLs;
 import static io.confluent.migration.utils.Constants.*;
-import static io.confluent.migration.utils.SortCG.sortCG;
+import static io.confluent.migration.utils.SortCG.sortByCGCommittedOffsetTime;
+import static io.confluent.migration.utils.SortCG.sortByCGLag;
 
 //import kafka.coordinator.group.OffsetKey;
 //import org.apache.kafka.clients.producer.ProducerRecord;
@@ -42,7 +45,8 @@ public class SourceClusterMetaDataFetcher {
     static Map< String,TopicMetadata> topicMetadataMap = new HashMap<>();
     static Map< String, List<ConsumerGroupMetdata>> cgMetadataListMap = new HashMap<>();
     static ObjectMapper objectMapper = new ObjectMapper();
-    static Map<ConsumerGroupMetdata, Long> sortedCGMap = new HashMap<>();
+    static Map<ConsumerGroupMetdata, Long> sortedByCGLagMap = new HashMap<>();
+    static Map<ConsumerGroupMetdata, Long> sortedByCGCommittedTimestampMap = new HashMap<>();
 
 
     public static void main(String[] args) throws ExecutionException, InterruptedException, TimeoutException {
@@ -87,6 +91,8 @@ public class SourceClusterMetaDataFetcher {
         System.out.println("Enter 1 to export all topic's as JSON : ");
         System.out.println("Enter 2 to export ACL's as JSON & apply to destination cluster : ");
         System.out.println("Enter 3 to export Consumer Group details as JSON : ");
+        System.out.println("Enter 4 to export Quotas as JSON & apply to destination cluster : ");
+
         int optionInt = scanner.nextInt();
 
 
@@ -100,6 +106,12 @@ public class SourceClusterMetaDataFetcher {
                  // Print ACL to file and create ACL on destination Clsuter
                  writeAclsToFileAndCreateAcl(allAcls, destClusterAdminClient);
                  break;
+            case ALL_QUOTAS:
+                Map<ClientQuotaEntity,Map<java.lang.String,java.lang.Double>> quotaList =  sourceClusterAdminClient.describeClientQuotas(ClientQuotaFilter.all()).entities().get();
+                for ( Map.Entry<ClientQuotaEntity,Map<String, Double>> entry : quotaList.entrySet()) {
+                    System.out.println(entry.getKey() + "/" + entry.getValue());
+                }
+                break;
             case ALL_CG:
                 boolean inclusiveFilterBool = false;
                 System.out.println(" Enter all Consumer Group names(comma seperated) for extraction, enter * for all groups ");
@@ -129,7 +141,8 @@ public class SourceClusterMetaDataFetcher {
 
                  exportAllConsumerGroups(sourceClusterAdminClient, sourceProperties, cgCsvFilter, inclusiveFilterBool);
                  writeCgsToFile(cgMetadataListMap);
-                 writeSortedCgsToFile(sortCG(sortedCGMap));
+                 writeSortedCgsToFile(sortByCGLag(sortedByCGLagMap),"source_cluster_CG_sorted_by_lag.json" );
+                 writeSortedCgsToFile(sortByCGCommittedOffsetTime(sortedByCGCommittedTimestampMap),"source_cluster_CG_sorted_by_timestamp.json" );
                 break;
             default:
                 System.out.println("Invalid Option, program will now exit");
@@ -221,7 +234,11 @@ public class SourceClusterMetaDataFetcher {
                         System.out.println("Topic Name : "+ topicPartition.topic() + " , Partition :   "+ topicPartition.partition()+ " , Current Offset :   "+offsetAndMetadata.offset() + ", Log end Offset : "+ logEndOffsetMap.get(topicPartition) + ",  Lag : "+ (logEndOffsetMap.get(topicPartition)-offsetAndMetadata.offset()) + " , TimeStamp of last committed offset :  "+record.timestamp() );
                     }
 
-                        sortedCGMap.put(cgMetadata, consumerLag);
+                    //To sort by highest to lowest consumer lag
+                        sortedByCGLagMap.put(cgMetadata, consumerLag);
+                        //To sort by lowest to highest consumer read timestamp ( ie timestamp from the committed offset)
+                        sortedByCGCommittedTimestampMap.put(cgMetadata, cgMetadata.getTimestamp());
+
 
 
 //                        RecordMetaData recordMetaData = new RecordMetaData();
@@ -353,11 +370,6 @@ public class SourceClusterMetaDataFetcher {
 
     private static void writeAclsToFileAndCreateAcl(List<AclBinding> allAcls, AdminClient adminClient) {
         try {
-
-
-
-
-
             JsonNode myObjects = objectMapper.valueToTree(allAcls.toString());
             //List<AclBinding> myObjects = objectMapper.readValue(allAcls.toString() ,new TypeReference<List<AclBinding>>() { } );
             //String jsonArray = objectMapper.writeValueAsString(allAcls);
@@ -388,12 +400,12 @@ public class SourceClusterMetaDataFetcher {
         }
     }
 
-    private static void writeSortedCgsToFile(ArrayList<ConsumerGroupMetdata> sortedcgMetadataList) {
+    private static void writeSortedCgsToFile(ArrayList<ConsumerGroupMetdata> sortedcgMetadataList, String fileName) {
         //objectMapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
         try {
             objectMapper
                     .writerWithDefaultPrettyPrinter()
-                    .writeValue(new File("source_cluster_CG_sorted.json"), sortedcgMetadataList);
+                    .writeValue(new File(fileName), sortedcgMetadataList);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -424,7 +436,6 @@ public class SourceClusterMetaDataFetcher {
                     new AccessControlEntryFilter(null, null, AclOperation.ANY, AclPermissionType.ANY));
 
             Collection<AclBinding> aclBindingList =  adminClient.describeAcls(any).values().get();
-
 
             return  new ArrayList<>(aclBindingList);
         } catch (SecurityDisabledException sed){
