@@ -1,0 +1,73 @@
+version: '3.8'
+services:
+  zk1:
+    image: confluentinc/cp-zookeeper:7.3.0
+    hostname: zk1
+    container_name: zk1
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  zk2:
+    image: confluentinc/cp-zookeeper:7.3.0
+    hostname: zk2
+    container_name: zk2
+    ports:
+      - "2191:2191"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2191
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka-source:
+    image: confluentinc/cp-kafka:7.3.0
+    hostname: kafka-source
+    container_name: kafka-source
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zk1:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-source:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: 'false'
+      KAFKA_AUTHORIZER_CLASS_NAME: kafka.security.authorizer.AclAuthorizer
+      KAFKA_SUPER_USERS: User:admin;User:ANONYMOUS
+
+  kafka-destination:
+    image: confluentinc/cp-kafka:7.3.0
+    hostname: kafka-destination
+    container_name: kafka-destination
+    ports:
+      - "9094:9094"
+      - "9095:9095"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zk2:2191
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-destination:9094,PLAINTEXT_HOST://localhost:9095
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE: 'false'
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: 'false'
+      KAFKA_AUTHORIZER_CLASS_NAME: kafka.security.authorizer.AclAuthorizer
+      KAFKA_SUPER_USERS: User:admin;User:ANONYMOUS
+
+networks:
+  default:
+    name: kafka-net
+    driver: bridge
+
+
+
+
+#      KAFKA_SUPER_USERS: User:admin;User:ANONYMOUS

@@ -1,0 +1,14 @@
+{
+  "topic1" : {
+    "configs" : { },
+    "setAclOperations" : null,
+    "partition" : 10,
+    "replicationFactor" : 1
+  },
+  "topic11" : {
+    "configs" : { },
+    "setAclOperations" : null,
+    "partition" : 11,
+    "replicationFactor" : 1
+  }
+}

@@ -1,0 +1,97 @@
+[ {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 6,
+  "currentOffsetNumber" : 64851,
+  "logEndOffsetNumber" : 183647,
+  "consumerLag" : 118796,
+  "timestamp" : 1719930366015
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 0,
+  "currentOffsetNumber" : 52177,
+  "logEndOffsetNumber" : 153924,
+  "consumerLag" : 101747,
+  "timestamp" : 1719930726022
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 8,
+  "currentOffsetNumber" : 58902,
+  "logEndOffsetNumber" : 172048,
+  "consumerLag" : 113146,
+  "timestamp" : 1719937583028
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 2,
+  "currentOffsetNumber" : 47199,
+  "logEndOffsetNumber" : 140062,
+  "consumerLag" : 92863,
+  "timestamp" : 1719937823039
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 4,
+  "currentOffsetNumber" : 65957,
+  "logEndOffsetNumber" : 193553,
+  "consumerLag" : 127596,
+  "timestamp" : 1719937883031
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 9,
+  "currentOffsetNumber" : 57605,
+  "logEndOffsetNumber" : 170698,
+  "consumerLag" : 113093,
+  "timestamp" : 1719937943028
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 5,
+  "currentOffsetNumber" : 63479,
+  "logEndOffsetNumber" : 187680,
+  "consumerLag" : 124201,
+  "timestamp" : 1719937943030
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 11,
+  "currentOffsetNumber" : 55141,
+  "logEndOffsetNumber" : 160586,
+  "consumerLag" : 105445,
+  "timestamp" : 1719938183039
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 1,
+  "currentOffsetNumber" : 49594,
+  "logEndOffsetNumber" : 147345,
+  "consumerLag" : 97751,
+  "timestamp" : 1719938183047
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 10,
+  "currentOffsetNumber" : 57384,
+  "logEndOffsetNumber" : 166330,
+  "consumerLag" : 108946,
+  "timestamp" : 1719938303041
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 7,
+  "currentOffsetNumber" : 62209,
+  "logEndOffsetNumber" : 178064,
+  "consumerLag" : 115855,
+  "timestamp" : 1719939203048
+}, {
+  "consumerGroupName" : "ConfluentTelemetryReporterSampler-3099140885701459996",
+  "topicName" : "_confluent-telemetry-metrics",
+  "partitionNum" : 3,
+  "currentOffsetNumber" : 68798,
+  "logEndOffsetNumber" : 195542,
+  "consumerLag" : 126744,
+  "timestamp" : 1719939203054
+} ]

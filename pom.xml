@@ -4,6 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.10</version>
+        <relativePath/> <!-- lookup parent from repository -->
+    </parent>
+
     <groupId>io.confluent.translation</groupId>
     <artifactId>MigrationUtility</artifactId>
     <version>1</version>
@@ -11,8 +18,6 @@
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <dropwizard.version>2.1.0</dropwizard.version>
-        <swagger.version>1.5.3-M1</swagger.version>
         <jdk.version>1.8</jdk.version>
         <packaging>jar</packaging>
 
@@ -21,27 +26,33 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <gson.version>2.2.4</gson.version>
         <schemaRegistryUrl>https://psrc-vn38j.us-east-2.aws.confluent.cloud</schemaRegistryUrl>
-        <schemaRegistryBasicAuthUserInfo>LKERKV7IZI7RS3RP:gCf/3R0aTe35P9uYnv5uZuIYM9UVIFqMO0NWGqpug1WuHn1o5cavI6r0PyFoJI9Y</schemaRegistryBasicAuthUserInfo>
-        <kafka-client.version>3.3.2</kafka-client.version>
+        <schemaRegistryBasicAuthUserInfo>username:secret</schemaRegistryBasicAuthUserInfo>
+        <kafka-client.version>3.4.1</kafka-client.version>
 
     </properties>
 
     <dependencies>
         <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
-            <version>3.4.1</version>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
         <dependency>
-            <groupId>com.wordnik</groupId>
-            <artifactId>swagger-annotations</artifactId>
-            <version>${swagger.version}</version>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-ui</artifactId>
+            <version>1.8.0</version>
         </dependency>
+
         <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
-            <version>2.17.0</version>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <version>${kafka-client.version}</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
@@ -51,60 +62,56 @@
             <version>2.12.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+            <version>2.7.10</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+            <version>3.2.7</version>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+            <version>1.19.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>kafka</artifactId>
+            <scope>test</scope>
+            <version>1.19.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.awaitility</groupId>
+            <artifactId>awaitility</artifactId>
+            <version>4.2.0</version>
+            <scope>test</scope>
+        </dependency>
 
 
-        <!--        <dependency>-->
-<!--            <groupId>io.confluent</groupId>-->
-<!--            <artifactId>kafka-avro-serializer</artifactId>-->
-<!--            <version>5.3.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>io.confluent</groupId>-->
-<!--            <artifactId>kafka-streams-avro-serde</artifactId>-->
-<!--            <version>5.3.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>kafka-avro-confluent</groupId>-->
-<!--            <artifactId>kafka-avro-confluent</artifactId>-->
-<!--            <version>0.1.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.avro</groupId>-->
-<!--            <artifactId>avro-maven-plugin</artifactId>-->
-<!--            <version>1.11.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.avro</groupId>-->
-<!--            <artifactId>avro</artifactId>-->
-<!--            <version>1.11.0</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.kafka</groupId>-->
-<!--            <artifactId>kafka-streams</artifactId>-->
-<!--            <version>7.4.0-876-ce</version>-->
-<!--        </dependency>-->
-<!--        <dependency>-->
-<!--            <groupId>org.apache.kafka</groupId>-->
-<!--            <artifactId>kafka-streams</artifactId>-->
-<!--            <version>3.3.2</version>-->
-<!--        </dependency>-->
+
 
     </dependencies>
-<!--    <repositories>-->
-<!--        <repository>-->
-<!--            <id>confluent</id>-->
-<!--            <url>https://packages.confluent.io/maven/</url>-->
-<!--        </repository>-->
-<!--    </repositories>-->
-<!--    <pluginRepositories>-->
-<!--        <pluginRepository>-->
-<!--            <id>confluent</id>-->
-<!--            <name>Confluent</name>-->
-<!--            <url>https://packages.confluent.io/maven/</url>-->
-<!--        </pluginRepository>-->
-<!--    </pluginRepositories>-->
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -166,26 +173,6 @@
                 <artifactId>maven-clean-plugin</artifactId>
                 <version>3.2.0</version>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>org.apache.avro</groupId>-->
-<!--                <artifactId>avro-maven-plugin</artifactId>-->
-<!--                <version>1.11.0</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <phase>generate-sources</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>schema</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <sourceDirectory>${project.basedir}/src/main/resources/</sourceDirectory>-->
-<!--                            <includes>-->
-<!--                                <include>DataRecordAvro.avsc</include>-->
-<!--                            </includes>-->
-<!--                            <outputDirectory>${project.build.directory}/generated-avro-objects</outputDirectory>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -200,40 +187,6 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.3.0</version>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-shade-plugin</artifactId>-->
-<!--                <version>3.4.1</version>-->
-<!--                <configuration>-->
-<!--                    <createDependencyReducedPom>true</createDependencyReducedPom>-->
-<!--                    <filters>-->
-<!--                        <filter>-->
-<!--                            <artifact>*:*</artifact>-->
-<!--                            <excludes>-->
-<!--                                <exclude>META-INF/*.SF</exclude>-->
-<!--                                <exclude>META-INF/*.DSA</exclude>-->
-<!--                                <exclude>META-INF/*.RSA</exclude>-->
-<!--                            </excludes>-->
-<!--                        </filter>-->
-<!--                    </filters>-->
-<!--                </configuration>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <phase>package</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>shade</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <transformers>-->
-<!--                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />-->
-<!--                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">-->
-<!--                                    <mainClass>com.aj.basicdropwizard.BasicDropwizardApplication</mainClass>-->
-<!--                                </transformer>-->
-<!--                            </transformers>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
         </plugins>
     </build>
 

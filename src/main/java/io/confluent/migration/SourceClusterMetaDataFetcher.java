@@ -7,10 +7,25 @@ import io.confluent.model.ConsumerGroupMetdata;
 import io.confluent.model.TopicMetadata;
 import io.confluent.migration.model.RecordMetaData;
 import io.confluent.migration.utils.KafkaUtils;
-import org.apache.kafka.clients.admin.*;
-import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.Config;
+import org.apache.kafka.clients.admin.ConfigEntry;
+import org.apache.kafka.clients.admin.DescribeConfigsResult;
+import org.apache.kafka.clients.admin.DescribeTopicsResult;
+import org.apache.kafka.clients.admin.ListTopicsOptions;
+import org.apache.kafka.clients.admin.ListTopicsResult;
+import org.apache.kafka.clients.admin.TopicDescription;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.acl.*;
+import org.apache.kafka.common.acl.AccessControlEntryFilter;
+import org.apache.kafka.common.acl.AclBinding;
+import org.apache.kafka.common.acl.AclBindingFilter;
+import org.apache.kafka.common.acl.AclOperation;
+import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.errors.SecurityDisabledException;
 import org.apache.kafka.common.quota.ClientQuotaEntity;
@@ -18,11 +33,22 @@ import org.apache.kafka.common.quota.ClientQuotaFilter;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.resource.ResourcePatternFilter;
+import org.apache.kafka.common.serialization.StringDeserializer;
 
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
@@ -32,16 +58,7 @@ import static io.confluent.migration.utils.Constants.*;
 import static io.confluent.migration.utils.SortCG.sortByCGCommittedOffsetTime;
 import static io.confluent.migration.utils.SortCG.sortByCGLag;
 
-//import kafka.coordinator.group.OffsetKey;
-//import org.apache.kafka.clients.producer.ProducerRecord;
-//import org.apache.kafka.clients.producer.RecordMetadata;
-//import org.apache.kafka.clients.producer.ProducerConfig;
-//import org.apache.kafka.clients.producer.Producer;
-//
-//
-//import org.apache.kafka.common.*;
 public class SourceClusterMetaDataFetcher {
-    static List<TopicMetadata> topicMetadataList = new ArrayList<>();
     static Map< String,TopicMetadata> topicMetadataMap = new HashMap<>();
     static Map< String, List<ConsumerGroupMetdata>> cgMetadataListMap = new HashMap<>();
     static ObjectMapper objectMapper = new ObjectMapper();
@@ -68,7 +85,6 @@ public class SourceClusterMetaDataFetcher {
         System.out.println(".");
         System.out.println("..");
         System.out.println("...");
-        //Properties sourceProperties = KafkaUtils.getSourceClusterConfigs("/Users/bjaggi/confluent/OffsetTranslation/src/main/resources/sourcecluster.properties");
         Properties sourceProperties = KafkaUtils.getSourceClusterConfigs(sourceClusterAbsolutePath);
         Properties destProperties = KafkaUtils.getSourceClusterConfigs(destinationCLusterAbsolutePath);
         // FOR JPMC
@@ -139,6 +155,9 @@ public class SourceClusterMetaDataFetcher {
                     System.exit(1);
                 }
 
+                sourceProperties.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+                sourceProperties.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+                sourceProperties.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, "Migration_Utility");
                  exportAllConsumerGroups(sourceClusterAdminClient, sourceProperties, cgCsvFilter, inclusiveFilterBool);
                  writeCgsToFile(cgMetadataListMap);
                  writeSortedCgsToFile(sortByCGLag(sortedByCGLagMap),"source_cluster_CG_sorted_by_lag.json" );
@@ -219,7 +238,7 @@ public class SourceClusterMetaDataFetcher {
                     cgMetadata.setConsumerLag(longEndOffset-currentOffset);
                     if(longEndOffset !=0){
                     consumer.seek(topicPartition, offsetAndMetadata.offset());
-                    //consumer.position(topicPartition);
+//                    consumer.position(topicPartition);
                     ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(20));
                     //for (ConsumerRecord record : records) {
                     if(records != null && !records.isEmpty()) {
@@ -340,19 +359,13 @@ public class SourceClusterMetaDataFetcher {
 
             boolean isinternal = topicsConfigList.topicNameValues().get(topicName).get().isInternal();
             TopicMetadata topicMetadata = new TopicMetadata();
-//            System.out.println("partition.count : "+ partition_count);
-//            System.out.println("nun.replicas " + replicas);
-//            System.out.println(" ACL Set " + setAclOperations);
-//            System.out.println(" isInternal " + isinternal);
             topicMetadata.setPartitionCount(partition_count);
             topicMetadata.setReplicationFactor(replicas);
 
             Map<String, String> map = new HashMap<String, String>();
             boolean isFilterProperties = true;
             for ( ConfigEntry configEntry : configList){
-                if(isFilterProperties   ) {
-                    //System.out.println(configEntry.isDefault() + ", " + configEntry.source() + ", " + configEntry.name());
-                    //if (configEntry.source().equals(ConfigEntry.ConfigSource.DYNAMIC_TOPIC_CONFIG) && importantProperties.contains(configEntry.name())){
+                if(isFilterProperties) {
                     if (configEntry.source().equals(ConfigEntry.ConfigSource.DYNAMIC_TOPIC_CONFIG) ){
                         System.out.println(configEntry.isDefault() + ", " + configEntry.name() + ", " + configEntry.value());
                         map.put(configEntry.name(), configEntry.value());
@@ -364,17 +377,12 @@ public class SourceClusterMetaDataFetcher {
             }
             topicMetadata.setConfigs(map);
             topicMetadataMap.put(topicName, topicMetadata);
-            //topicMetadataList.add(topicMetadata);
         }
     }
 
     private static void writeAclsToFileAndCreateAcl(List<AclBinding> allAcls, AdminClient adminClient) {
         try {
             JsonNode myObjects = objectMapper.valueToTree(allAcls.toString());
-            //List<AclBinding> myObjects = objectMapper.readValue(allAcls.toString() ,new TypeReference<List<AclBinding>>() { } );
-            //String jsonArray = objectMapper.writeValueAsString(allAcls);
-            //objectMapper.readValue(jsonArray, new TypeReference<List<AclBinding>>() { });
-
             objectMapper
                     .enable(SerializationFeature.INDENT_OUTPUT)
                     .writerWithDefaultPrettyPrinter()
@@ -388,7 +396,6 @@ public class SourceClusterMetaDataFetcher {
 
 
     private static void writeCgsToFile(Map< String, List<ConsumerGroupMetdata>> cgMetadataListMap) {
-        //objectMapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
         try {
             objectMapper
                     .writerWithDefaultPrettyPrinter()
@@ -401,7 +408,6 @@ public class SourceClusterMetaDataFetcher {
     }
 
     private static void writeSortedCgsToFile(ArrayList<ConsumerGroupMetdata> sortedcgMetadataList, String fileName) {
-        //objectMapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
         try {
             objectMapper
                     .writerWithDefaultPrettyPrinter()
@@ -412,7 +418,6 @@ public class SourceClusterMetaDataFetcher {
     }
 
     private static void writeTopicsToFile() {
-        //objectMapper.configure(SerializationConfig.Feature.INDENT_OUTPUT, true);
         try {
             objectMapper
                     .writerWithDefaultPrettyPrinter()
@@ -427,9 +432,6 @@ public class SourceClusterMetaDataFetcher {
 
     private static List<AclBinding> exportAllAcls(AdminClient adminClient) {
         try {
-//            AclBindingFilter any = new AclBindingFilter(
-//                    new ResourcePatternFilter(ResourceType.TOPIC, null, PatternType.ANY),
-//                    new AccessControlEntryFilter("User:" + username, null, AclOperation.ANY, AclPermissionType.ANY));
             System.out.println("####### FOLLOWING ACL's WERE FOUND  ####### :");
             AclBindingFilter any = new AclBindingFilter(
                     new ResourcePatternFilter(ResourceType.ANY, null, PatternType.ANY),

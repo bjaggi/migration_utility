@@ -1,0 +1,1 @@
+"[(pattern=ResourcePattern(resourceType=TOPIC, name=jpmc_topic, patternType=LITERAL), entry=(principal=User:admin, host=*, operation=READ, permissionType=ALLOW)), (pattern=ResourcePattern(resourceType=TOPIC, name=topic, patternType=LITERAL), entry=(principal=User:admin, host=*, operation=ALL, permissionType=ALLOW))]"

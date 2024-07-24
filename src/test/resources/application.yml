@@ -1,0 +1,9 @@
+kafka:
+  clusters:
+    homelab:
+      bootstrap.servers: bootstrap.local.nermdev.io:443
+      security.protocol: SASL_SSL
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="nermin" password="nermin-secret";
+      ssl.truststore.location: /Users/ndedovic/PycharmProjects/homelab/workspace/kafka/auth/nermin/truststore.jks
+      ssl.truststore.password: mystorepassword

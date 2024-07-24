@@ -5,7 +5,6 @@ import org.apache.kafka.common.TopicPartition;
 public class RecordMetaData {
     TopicPartition partition;
     String topicName;
-    //String partitionName;
     long timestamp;
     long offset;
 
@@ -25,13 +24,6 @@ public class RecordMetaData {
         this.topicName = topicName;
     }
 
-//    public String getPartitionName() {
-//        return partitionName;
-//    }
-//
-//    public void setPartitionName(String partitionName) {
-//        this.partitionName = partitionName;
-//    }
 
     public long getTimestamp() {
         return timestamp;
@@ -55,7 +47,6 @@ public class RecordMetaData {
     public RecordMetaData(TopicPartition partition, String topicName, long timestamp, long offset) {
         this.partition = partition;
         this.topicName = topicName;
-        //this.partitionName = partitionName;
         this.timestamp = timestamp;
         this.offset = offset;
     }
