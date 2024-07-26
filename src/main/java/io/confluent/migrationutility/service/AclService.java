@@ -26,6 +26,7 @@ public class AclService {
    */
   public AclResponse listAcl(final Map<String, String> config) {
     final List<AclBinding> aclBindings = AdminClientUtils.listAcl(config);
+    log.debug("listAcl returned acl bindings: {}", aclBindings);
     return new AclResponse(
             aclBindings.stream().map(AclEntry::new).collect(Collectors.toList())
     );
@@ -40,7 +41,7 @@ public class AclService {
   public AclResponse applyAclMetadataRequest(final Map<String, String> srcClusterConfig, final Map<String, String> destClusterConfig) {
     final List<AclBinding> srcAcls = AdminClientUtils.listAcl(srcClusterConfig);
 
-    log.debug("Applying source cluster ACLs to destination cluster : {}", srcAcls);
+    log.debug("Applying source cluster ACLs into destination cluster : {}", srcAcls);
     AdminClientUtils.createAcls(destClusterConfig, srcAcls);
 
     final List<AclBinding> destAcls = AdminClientUtils.listAcl(destClusterConfig);
