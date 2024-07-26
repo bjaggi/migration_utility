@@ -71,7 +71,7 @@ public class AclService {
     return new AclResponse(entriesToApply, destAclEntries);
   }
 
-  private List<AclBinding> mapAclEntryToAclBinding(final List<AclEntry> entries) {
+  private static List<AclBinding> mapAclEntryToAclBinding(final List<AclEntry> entries) {
     return entries.stream().map(entry -> new AclBinding(
             new ResourcePattern(entry.getResourceType(), entry.getResourceName(), entry.getResourcePatternType()),
             new AccessControlEntry(entry.getPrincipal(), entry.getHost(), entry.getOperation(), entry.getAccess())

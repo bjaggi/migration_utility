@@ -16,50 +16,67 @@ import java.util.stream.Collectors;
 public class TopicService {
 
 
+  /**
+   * Query topic metadata within kafka cluster
+   * @param config cluster config
+   * @param topics target topics of interest
+   * @return all or target subset topic metadata
+   */
   public TopicMetadataResponse listTopics(final Map<String, String> config, final List<String> topics) {
     final List<TopicEntry> srcTopicEntries = AdminClientUtils.listTopics2(config, topics);
     return new TopicMetadataResponse(srcTopicEntries);
   }
 
+  /**
+   * Export all/subset topics from source and apply all/subset topics in destination
+   * @param srcConfig source cluster config
+   * @param destConfig destination cluster config
+   * @param targetTopics optional list of target topic names (topics of interest)
+   * @return TopicMetadataResponse
+   */
   public TopicMetadataResponse applyTopicMetadataRequest(final Map<String, String> srcConfig, final Map<String, String> destConfig, final List<String> targetTopics) {
-
     final List<TopicEntry> srcTopics = AdminClientUtils.listTopics2(srcConfig, targetTopics);
-    log.info("Query source topic list result : {}", srcTopics);
+    final Set<String> destExistingTopics = listAndExtractTopicNames(destConfig, targetTopics);
+    log.debug("Query destination topic list (pre-apply) result - {}", destExistingTopics);
 
-    final Set<String> destExistingTopics = AdminClientUtils.listTopics2(destConfig, targetTopics)
-            .stream()
-            .map(TopicEntry::getTopic)
-            .collect(Collectors.toSet());
-    log.info("Query destination topic list (pre-apply) result - {}", destExistingTopics);
-
-    final List<TopicEntry> srcTopicsFiltered = srcTopics.stream().filter(entry -> !destExistingTopics.contains(entry.getTopic()))
+    final List<TopicEntry> srcTopicsFiltered = srcTopics.stream()
+            .filter(entry -> !destExistingTopics.contains(entry.getTopic()))
             .collect(Collectors.toList());
-    log.info("Topics to be created in destination cluster : {}", srcTopicsFiltered);
+    log.debug("Topics to be created in destination cluster : {}", srcTopicsFiltered);
     AdminClientUtils.createTopics2(destConfig, srcTopicsFiltered);
 
     final List<TopicEntry> destTopics = AdminClientUtils.listTopics2(destConfig, targetTopics);
-    log.info("Query destination topic list (post-apply) result : {}", destTopics);
+    log.debug("Query destination topic list (post-apply) result : {}", destTopics);
     return new TopicMetadataResponse(srcTopics, destTopics);
   }
 
+
+  /**
+   * Apply defined subset of topics into destination cluster
+   * @param destConfig destination cluster config
+   * @param targetTopics defined subset of topics to create
+   * @return TopicMetadataResponse
+   */
   public TopicMetadataResponse applyTopicMetadataRequest(final Map<String, String> destConfig, final List<TopicEntry> targetTopics) {
+    List<String> targetTopicNames = targetTopics.stream().map(TopicEntry::getTopic).collect(Collectors.toList());
+    final Set<String> destExistingTopics = listAndExtractTopicNames(destConfig, targetTopicNames);
 
-
-    List<String> targetTopicNames = targetTopics.stream().map(t -> t.getTopic()).collect(Collectors.toList());
-    final Set<String> destExistingTopics = AdminClientUtils.listTopics2(destConfig, targetTopicNames)
-            .stream()
-            .map(TopicEntry::getTopic)
-            .collect(Collectors.toSet());
-    log.info("Query destination topic list (pre-apply) result - {}", destExistingTopics);
-
-    final List<TopicEntry> destTopicsFiltered = targetTopics.stream().filter(entry -> !destExistingTopics.contains(entry.getTopic()))
+    final List<TopicEntry> destTopicsFiltered = targetTopics.stream()
+            .filter(entry -> !destExistingTopics.contains(entry.getTopic()))
             .collect(Collectors.toList());
-    log.info("Topics to be created in destination cluster : {}", destTopicsFiltered);
+    log.info("Defined topics to be created in destination cluster : {}", destTopicsFiltered);
     AdminClientUtils.createTopics2(destConfig, destTopicsFiltered);
 
     final List<TopicEntry> destTopics = AdminClientUtils.listTopics2(destConfig, targetTopicNames);
     log.info("Query destination topic list (post-apply) result : {}", destTopics);
     return new TopicMetadataResponse(targetTopics, destTopics);
+  }
+
+  private static Set<String> listAndExtractTopicNames(final Map<String, String> config, final List<String> topics) {
+    return AdminClientUtils.listTopics2(config, topics)
+            .stream()
+            .map(TopicEntry::getTopic)
+            .collect(Collectors.toSet());
   }
 
 
