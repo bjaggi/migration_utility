@@ -1,4 +1,4 @@
-package io.confluent.migrationutility.model;
+package io.confluent.migrationutility.model.group;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

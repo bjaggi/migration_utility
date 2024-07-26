@@ -1,6 +1,6 @@
 package io.confluent.migration.utils;
 
-import io.confluent.model.ConsumerGroupMetdata;
+import io.confluent.migration.model.ConsumerGroupMetdata;
 
 import java.util.*;
 

@@ -1,4 +1,4 @@
-package io.confluent.model;
+package io.confluent.migration.model;
 
 public class ConsumerGroupMetdata {
 

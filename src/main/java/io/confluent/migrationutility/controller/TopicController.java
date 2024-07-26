@@ -1,7 +1,7 @@
 package io.confluent.migrationutility.controller;
 
 import io.confluent.migrationutility.config.KafkaClusterConfig;
-import io.confluent.migrationutility.exception.InvalidClusterId;
+import io.confluent.migrationutility.exception.InvalidClusterIdException;
 import io.confluent.migrationutility.model.topic.TopicMetadataExtendedRequest;
 import io.confluent.migrationutility.model.topic.TopicMetadataRequest;
 import io.confluent.migrationutility.model.topic.TopicMetadataResponse;
@@ -37,7 +37,12 @@ public TopicMetadataResponse exportTopics(@RequestBody final TopicMetadataReques
   log.info("Received request : {}", request);
   final Map<String, String> config = Optional.ofNullable(
           clusterConfig.getClusters().get(request.getSourceCluster())
-  ).orElseThrow(() -> new InvalidClusterId(request.getSourceCluster()));
+  ).orElseThrow(() -> new InvalidClusterIdException(request.getSourceCluster()));
+
+  for (String key : config.keySet()) {
+    log.info("{} : {}", key, config.get(key));
+  }
+
 
   return topicService.listTopics(config, request.getTopics());
 
@@ -52,11 +57,11 @@ public TopicMetadataResponse exportTopics(@RequestBody final TopicMetadataReques
     log.info("Received request : {}", request);
     final Map<String, String> srcClusterConfig = Optional.ofNullable(
             clusterConfig.getClusters().get(request.getSourceCluster())
-    ).orElseThrow(() -> new InvalidClusterId(request.getSourceCluster()));
+    ).orElseThrow(() -> new InvalidClusterIdException(request.getSourceCluster()));
 
     final Map<String, String> destClusterConfig = Optional.ofNullable(
             clusterConfig.getClusters().get(request.getDestinationCluster())
-    ).orElseThrow(() -> new InvalidClusterId(request.getDestinationCluster()));
+    ).orElseThrow(() -> new InvalidClusterIdException(request.getDestinationCluster()));
 
     return topicService.applyTopicMetadataRequest(srcClusterConfig, destClusterConfig, request.getTopics());
   }
@@ -71,7 +76,7 @@ public TopicMetadataResponse exportTopics(@RequestBody final TopicMetadataReques
 
     final Map<String, String> destClusterConfig = Optional.ofNullable(
             clusterConfig.getClusters().get(request.getClusterId())
-    ).orElseThrow(() -> new InvalidClusterId(request.getClusterId()));
+    ).orElseThrow(() -> new InvalidClusterIdException(request.getClusterId()));
 
     return topicService.applyTopicMetadataRequest(destClusterConfig, request.getTopicEntries());
   }

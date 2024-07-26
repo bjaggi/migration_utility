@@ -1,6 +1,8 @@
 package io.confluent.migrationutility.controller;
 
-import io.confluent.migrationutility.exception.InvalidClusterId;
+import io.confluent.migrationutility.exception.ActiveGroupException;
+import io.confluent.migrationutility.exception.GroupServiceException;
+import io.confluent.migrationutility.exception.InvalidClusterIdException;
 import io.confluent.migrationutility.model.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -15,14 +17,30 @@ public class CustomExceptionHandler {
 
   @ExceptionHandler(Exception.class)
   public final ResponseEntity<ErrorResponse> handleAllExceptions(Exception ex, WebRequest request) {
-    log.error("{}", request);
+    log.error("Error caught from request : {}", request);
     final ErrorResponse internalServerError = new ErrorResponse("INTERNAL_SERVER_ERROR", ex.getLocalizedMessage());
     return new ResponseEntity<>(internalServerError, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
-  @ExceptionHandler(InvalidClusterId.class)
-  public final ResponseEntity<ErrorResponse> handleInvalidClusterIdException(InvalidClusterId ex, WebRequest request) {
-    log.error("{}", request);
+  @ExceptionHandler(GroupServiceException.class)
+  public final ResponseEntity<ErrorResponse> handleGroupServiceException(GroupServiceException ex, WebRequest request) {
+    log.error("Error caught from request : {}", request);
+    final ErrorResponse error = new ErrorResponse("GROUP_SERVICE_ERROR", ex.getLocalizedMessage());
+    return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  @ExceptionHandler(ActiveGroupException.class)
+  public final ResponseEntity<ErrorResponse> handleActiveGroupException(ActiveGroupException ex, WebRequest request) {
+    log.error("Error caught from request : {}", request);
+    final ErrorResponse error = new ErrorResponse("USER_ERROR", ex.getLocalizedMessage());
+    return new ResponseEntity<>(error, HttpStatus.NOT_ACCEPTABLE);
+  }
+
+
+
+  @ExceptionHandler(InvalidClusterIdException.class)
+  public final ResponseEntity<ErrorResponse> handleInvalidClusterIdException(InvalidClusterIdException ex, WebRequest request) {
+    log.error("Error caught from request : {}", request);
     final ErrorResponse internalServerError = new ErrorResponse("BAD_REQUEST", ex.getLocalizedMessage());
     return new ResponseEntity<>(internalServerError, HttpStatus.BAD_REQUEST);
   }

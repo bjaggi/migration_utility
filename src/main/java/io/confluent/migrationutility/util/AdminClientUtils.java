@@ -1,7 +1,7 @@
 package io.confluent.migrationutility.util;
 
 import io.confluent.migrationutility.model.topic.TopicEntry;
-import io.confluent.model.TopicMetadata;
+import io.confluent.migration.model.TopicMetadata;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AlterClientQuotasResult;

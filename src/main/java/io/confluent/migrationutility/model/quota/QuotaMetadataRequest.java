@@ -1,4 +1,4 @@
-package io.confluent.migrationutility.model;
+package io.confluent.migrationutility.model.quota;
 
 import lombok.Data;
 

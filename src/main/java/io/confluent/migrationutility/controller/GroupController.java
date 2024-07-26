@@ -1,11 +1,11 @@
 package io.confluent.migrationutility.controller;
 
 import io.confluent.migrationutility.config.KafkaClusterConfig;
-import io.confluent.migrationutility.exception.InvalidClusterId;
-import io.confluent.migrationutility.model.ApplyGroupMetadataRequest;
-import io.confluent.migrationutility.model.ConsumerGroupMetadata;
-import io.confluent.migrationutility.model.GroupMetadataRequest;
-import io.confluent.migrationutility.model.PostApplyGroupOffsets;
+import io.confluent.migrationutility.exception.InvalidClusterIdException;
+import io.confluent.migrationutility.model.group.ApplyGroupMetadataRequest;
+import io.confluent.migrationutility.model.group.ConsumerGroupMetadata;
+import io.confluent.migrationutility.model.group.GroupMetadataRequest;
+import io.confluent.migrationutility.model.group.PostApplyGroupOffsets;
 import io.confluent.migrationutility.service.GroupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -41,7 +41,7 @@ public class GroupController {
     log.info("Received request : {}", request);
     final Map<String, String> config = Optional.ofNullable(
             clusterConfig.getClusters().get(request.getClusterId())
-    ).orElseThrow(() -> new InvalidClusterId(request.getClusterId()));
+    ).orElseThrow(() -> new InvalidClusterIdException(request.getClusterId()));
 
     final List<ConsumerGroupMetadata> consumerGroupMetadataList = service.consumerGroupMetadataList(config, request.getGroups());
     for (ConsumerGroupMetadata cgm : consumerGroupMetadataList ) {
@@ -73,7 +73,7 @@ public class GroupController {
     log.info("Received request : {}", request);
     final Map<String, String> config = Optional.ofNullable(
             clusterConfig.getClusters().get(request.getClusterId())
-    ).orElseThrow(() -> new InvalidClusterId(request.getClusterId()));
+    ).orElseThrow(() -> new InvalidClusterIdException(request.getClusterId()));
     return service.applyConsumerGroupMetadata(config, request.getGroupMetadataList());
   }
 }

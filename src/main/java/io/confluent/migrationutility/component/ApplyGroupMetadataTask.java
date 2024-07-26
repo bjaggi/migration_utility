@@ -1,9 +1,10 @@
 package io.confluent.migrationutility.component;
 
 import io.confluent.migrationutility.exception.ActiveGroupException;
-import io.confluent.migrationutility.model.ConsumerGroupMetadata;
-import io.confluent.migrationutility.model.PostApplyGroupOffsets;
-import io.confluent.migrationutility.model.TopicPartitionMetadata;
+import io.confluent.migrationutility.exception.GroupServiceException;
+import io.confluent.migrationutility.model.group.ConsumerGroupMetadata;
+import io.confluent.migrationutility.model.group.PostApplyGroupOffsets;
+import io.confluent.migrationutility.model.group.TopicPartitionMetadata;
 import io.confluent.migrationutility.util.AdminClientUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -41,18 +42,17 @@ public class ApplyGroupMetadataTask implements Callable<PostApplyGroupOffsets> {
     this.targetClusterConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "none");
     this.targetClusterConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "1");
 
+    if (!AdminClientUtils.consumerGroupIsEmpty(adminConfig, group)) {
+      log.error("Cannot apply set consumer group ({}) offsets with active members consuming", group);
+      throw new ActiveGroupException("CG is actively consuming : " + group + " , cannot set offsets until no members from this group are consuming.");
+    }
+
     for (final TopicPartitionMetadata tpMetadata : groupMetadata.getTopicPartitionMetadata()) {
       srcTopicPartitionTimestamps.put(
               new TopicPartition(tpMetadata.getTopicName(), tpMetadata.getPartitionNum()),
               tpMetadata.getTimestamp()
       );
     }
-
-    if (!AdminClientUtils.consumerGroupIsEmpty(adminConfig, group)) {
-      log.error("Cannot apply set consumer group ({}) offsets with active members consuming", group);
-      throw new ActiveGroupException("CG is actively consuming : " + group + " , cannot set offsets until no members from this group are consuming.");
-    }
-
   }
 
   @Override
@@ -74,11 +74,13 @@ public class ApplyGroupMetadataTask implements Callable<PostApplyGroupOffsets> {
       }
 
       log.info("Executing consumer group offset commit for the following group ({}) TPs : {}", group, targetCommitOffsets);
-
       freeConsumer.commitSync(targetCommitOffsets);
-
       log.info("Successfully executed group offset reset for consumer group ({})", group);
+    } catch (final Exception e) {
+      log.error("Unexpected error occurred while applying group metadata: {}", e.getMessage(), e);
+      throw new GroupServiceException(e);
     }
+
     final Map<String, Map<TopicPartition, OffsetAndMetadata>> groupOffsetsPostApply = AdminClientUtils.consumerGroupOffsets(adminConfig, Collections.singletonList(group));
     assert !groupOffsetsPostApply.isEmpty();
     final Map<TopicPartition, OffsetAndMetadata> metadata = groupOffsetsPostApply.get(group);

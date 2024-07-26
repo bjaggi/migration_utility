@@ -1,8 +1,8 @@
 package io.confluent.migrationutility.controller;
 
 import io.confluent.migrationutility.config.KafkaClusterConfig;
-import io.confluent.migrationutility.exception.InvalidClusterId;
-import io.confluent.migrationutility.model.QuotaMetadataRequest;
+import io.confluent.migrationutility.exception.InvalidClusterIdException;
+import io.confluent.migrationutility.model.quota.QuotaMetadataRequest;
 import io.confluent.migrationutility.model.quota.QuotaMetadataExtendedRequest;
 import io.confluent.migrationutility.model.quota.QuotaResponse;
 import io.confluent.migrationutility.service.QuotaService;
@@ -37,7 +37,7 @@ public QuotaResponse exportQuotas(@RequestBody final QuotaMetadataRequest reques
   log.info("Received request : {}", request);
   final Map<String, String> config = Optional.ofNullable(
           clusterConfig.getClusters().get(request.getSourceClusterId()))
-          .orElseThrow(() -> new InvalidClusterId(request.getSourceClusterId()));
+          .orElseThrow(() -> new InvalidClusterIdException(request.getSourceClusterId()));
   return quotaService.listQuotas(config);
 }
 
@@ -52,11 +52,11 @@ public QuotaResponse exportQuotas(@RequestBody final QuotaMetadataRequest reques
 
     final Map<String, String> srcClusterConfig = Optional.ofNullable(
             clusterConfig.getClusters().get(request.getSourceClusterId())
-    ).orElseThrow(() -> new InvalidClusterId(request.getSourceClusterId()));
+    ).orElseThrow(() -> new InvalidClusterIdException(request.getSourceClusterId()));
 
     final Map<String, String> destClusterConfig = Optional.ofNullable(
             clusterConfig.getClusters().get(request.getDestClusterId())
-    ).orElseThrow(() -> new InvalidClusterId(request.getDestClusterId()));
+    ).orElseThrow(() -> new InvalidClusterIdException(request.getDestClusterId()));
 
     return quotaService.applyQuotasRequest(srcClusterConfig, destClusterConfig);
   }
@@ -72,7 +72,7 @@ public QuotaResponse exportQuotas(@RequestBody final QuotaMetadataRequest reques
 
     final Map<String, String> destClusterConfig = Optional.ofNullable(
             clusterConfig.getClusters().get(request.getClusterId())
-    ).orElseThrow(() -> new InvalidClusterId(request.getClusterId()));
+    ).orElseThrow(() -> new InvalidClusterIdException(request.getClusterId()));
 
     return quotaService.applyQuotasRequest(destClusterConfig, request.getQuotaEntries());
   }
