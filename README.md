@@ -1,4 +1,4 @@
-# migration_utility
+# Migration Utility
 
 [![Build status](https://badge.buildkite.com/59fd0ecf6f9a1dbdf9ec6d7ec2f5bd09eaea1de4e087e033a2.svg)](https://buildkite.com/nerm/migration-utility)
 
