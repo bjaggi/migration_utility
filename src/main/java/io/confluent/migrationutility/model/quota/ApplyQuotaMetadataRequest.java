@@ -1,10 +1,10 @@
-package io.confluent.migrationutility.model;
+package io.confluent.migrationutility.model.quota;
 
 import lombok.Data;
 
 
 @Data
-public class QuotaMetadataRequest {
+public class ApplyQuotaMetadataRequest {
   private String sourceClusterId;
   private String destClusterId;
 }

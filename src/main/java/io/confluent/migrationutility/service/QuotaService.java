@@ -17,6 +17,11 @@ import java.util.stream.Collectors;
 @Service
 public class QuotaService {
 
+  /**
+   * Query and return all existing quotas
+   * @param config clusterConfig
+   * @return quotaResponse
+   */
   public QuotaResponse listQuotas(final Map<String, String> config) {
     final List<QuotaEntry> quotaList = AdminClientUtils.listQuotas(config)
             .stream()
@@ -26,37 +31,51 @@ public class QuotaService {
 
   }
 
+  /**
+   * Query all quotas from source cluster and apply them into destination cluster
+   * @param srcConfig clusterConfig
+   * @param destConfig clusterConfig
+   * @return quotaResponse
+   */
   public QuotaResponse applyQuotasRequest(final Map<String, String> srcConfig, final Map<String, String> destConfig) {
     final List<ClientQuotaAlteration> srcQuotas = AdminClientUtils.listQuotas(srcConfig);
-    log.info("Query source cluster quotas list result : {}", srcQuotas);
-    log.info("Applying source cluster quotas to destination cluster");
+    log.debug("Query source cluster quotas list result : {}", srcQuotas);
+
     AdminClientUtils.createQuotas(destConfig, srcQuotas);
     final List<ClientQuotaAlteration> destQuotas = AdminClientUtils.listQuotas(destConfig);
-    log.info("Query destination cluster quotas list result : {}", destQuotas);
+    log.debug("Query destination cluster quotas list result (post-apply) : {}", destQuotas);
+
     return new QuotaResponse(
             srcQuotas.stream().map(QuotaEntry::new).collect(Collectors.toList()),
             destQuotas.stream().map(QuotaEntry::new).collect(Collectors.toList())
     );
   }
 
+  /**
+   * Apply user-defined quotas into destination cluster
+   * @param clusterConfig clusterConfig
+   * @param entriesToApply user-defined quotas
+   * @return quotaResponse
+   */
   public QuotaResponse applyQuotasRequest(final Map<String, String> clusterConfig, final List<QuotaEntry> entriesToApply) {
-
-    List<ClientQuotaAlteration> targetEntriesToApply = entriesToApply.stream().map(entry -> {
-      return new ClientQuotaAlteration(
-              new ClientQuotaEntity(entry.getEntities()),
-              entry.getQuotaScope().stream().map(op -> new ClientQuotaAlteration.Op(op.getKey(), op.getValue())).collect(Collectors.toList())
-      );
-    }).collect(Collectors.toList());
-
-    log.info("Applying source cluster quotas to destination cluster");
+    final List<ClientQuotaAlteration> targetEntriesToApply = mapEntriesToClientQuotaAlteration(entriesToApply);
     AdminClientUtils.createQuotas(clusterConfig, targetEntriesToApply);
     final List<ClientQuotaAlteration> destQuotas = AdminClientUtils.listQuotas(clusterConfig);
-    log.info("Query destination cluster quotas list result : {}", destQuotas);
+    log.debug("Query destination cluster quotas list (post-apply) result : {}", destQuotas);
     return new QuotaResponse(
             entriesToApply,
             destQuotas.stream().map(QuotaEntry::new).collect(Collectors.toList())
     );
   }
 
+  private static List<ClientQuotaAlteration> mapEntriesToClientQuotaAlteration(final List<QuotaEntry> entriesToMap) {
+    return entriesToMap
+            .stream()
+            .map(entry -> new ClientQuotaAlteration(
+                    new ClientQuotaEntity(entry.getEntities()),
+                    entry.getQuotaScope().stream().map(op -> new ClientQuotaAlteration.Op(op.getKey(), op.getValue())).collect(Collectors.toList())
+            ))
+            .collect(Collectors.toList());
+  }
 
 }

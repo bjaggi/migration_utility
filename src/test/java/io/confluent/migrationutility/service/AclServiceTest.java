@@ -27,8 +27,8 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,10 +79,14 @@ class AclServiceTest extends TestKafkaContext {
   @MethodSource
   void testExportAcls(ResourceType resourceType, String resourceName, PatternType patternType, String principal, AclOperation operation, AclPermissionType permissionType) {
     createAcl(resourceType, resourceName, patternType, principal, operation, permissionType);
-    final List<AclBinding> expected = Collections.singletonList(
-            new AclBinding(new ResourcePattern(resourceType, resourceName, patternType), new AccessControlEntry(principal, "*", operation, permissionType))
+    final AclBinding expectedBinding = new AclBinding(
+            new ResourcePattern(resourceType, resourceName, patternType),
+            new AccessControlEntry(principal, "*", operation, permissionType)
     );
-    final List<AclBinding> actual = service.listAcl(clusterConfig.get(Cluster.SOURCE));
+    final AclResponse expected = new AclResponse(
+            Stream.of(expectedBinding).map(AclEntry::new).collect(Collectors.toList())
+    );
+    final AclResponse actual = service.listAcl(clusterConfig.get(Cluster.SOURCE));
     assertThat(actual).isEqualTo(expected);
   }
 

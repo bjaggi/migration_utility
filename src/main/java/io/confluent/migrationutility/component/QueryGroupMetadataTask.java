@@ -1,7 +1,7 @@
 package io.confluent.migrationutility.component;
 
-import io.confluent.migrationutility.model.ConsumerGroupMetadata;
-import io.confluent.migrationutility.model.TopicPartitionMetadata;
+import io.confluent.migrationutility.model.group.ConsumerGroupMetadata;
+import io.confluent.migrationutility.model.group.TopicPartitionMetadata;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;

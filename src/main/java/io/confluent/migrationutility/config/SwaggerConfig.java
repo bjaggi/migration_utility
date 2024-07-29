@@ -13,8 +13,8 @@ public class SwaggerConfig {
     return new OpenAPI()
             .info(new Info()
                     .title("Migration_Utility API")
-                    .version("1.0")
-                    .description("API capable of extracting metadata (cg, topics, acls, quotas) from source CP cluster and applying to destination CP cluster")
+                    .version("1.0.0")
+                    .description("API capable of extracting metadata (cg, topics, acls, quotas) from source Kafka clusters and applying to destination Kafka clusters.")
             );
   }
 }

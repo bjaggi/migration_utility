@@ -1,0 +1,13 @@
+steps:
+  - group: ":java::building_construction: JAVA :hammer:"
+    steps:
+      - label: "Compile / Build / Test / Package :maven::java:"
+        commands:
+          - mvn clean install
+        plugins:
+          - docker#v5.8.0:
+              image: dedovicnermin/buildkite-j17:0.0.2
+              propagate-uid-gid: true
+              volumes:
+                - "/var/run/docker.sock:/var/run/docker.sock"
+                - "$HOME/.m2:$HOME/.m2"

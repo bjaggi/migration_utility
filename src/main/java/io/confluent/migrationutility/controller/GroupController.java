@@ -1,12 +1,12 @@
 package io.confluent.migrationutility.controller;
 
 import io.confluent.migrationutility.config.KafkaClusterConfig;
-import io.confluent.migrationutility.exception.InvalidClusterId;
-import io.confluent.migrationutility.model.ApplyGroupMetadataRequest;
-import io.confluent.migrationutility.model.ConsumerGroupMetadata;
-import io.confluent.migrationutility.model.GroupMetadataRequest;
-import io.confluent.migrationutility.model.PostApplyGroupOffsets;
+import io.confluent.migrationutility.model.group.ApplyGroupMetadataRequest;
+import io.confluent.migrationutility.model.group.ConsumerGroupMetadata;
+import io.confluent.migrationutility.model.group.GroupMetadataRequest;
+import io.confluent.migrationutility.model.group.PostApplyGroupOffsets;
 import io.confluent.migrationutility.service.GroupService;
+import io.confluent.migrationutility.util.AppUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Tag(name = "ConsumerGroups")
@@ -38,13 +37,10 @@ public class GroupController {
   )
   @PostMapping("/export")
   public List<ConsumerGroupMetadata> exportConsumerGroupOffsets(@RequestBody final GroupMetadataRequest request) {
-    log.info("Received request : {}", request);
-    final Map<String, String> config = Optional.ofNullable(
-            clusterConfig.getClusters().get(request.getClusterId())
-    ).orElseThrow(() -> new InvalidClusterId(request.getClusterId()));
-
+    log.info("Received exportConsumerGroupOffsets request : {}", request);
+    final Map<String, String> config = AppUtils.getClusterConfig(clusterConfig, request.getClusterId());
     final List<ConsumerGroupMetadata> consumerGroupMetadataList = service.consumerGroupMetadataList(config, request.getGroups());
-    for (ConsumerGroupMetadata cgm : consumerGroupMetadataList ) {
+    for (final ConsumerGroupMetadata cgm : consumerGroupMetadataList ) {
       if (CollectionUtils.isEmpty(request.getTopics())) {
         cgm.setTopicPartitionMetadata(
                 cgm.getTopicPartitionMetadata().stream()
@@ -70,10 +66,8 @@ public class GroupController {
   )
   @PostMapping("/apply")
   public List<PostApplyGroupOffsets> applyConsumerGroupOffsets(@RequestBody final ApplyGroupMetadataRequest request) {
-    log.info("Received request : {}", request);
-    final Map<String, String> config = Optional.ofNullable(
-            clusterConfig.getClusters().get(request.getClusterId())
-    ).orElseThrow(() -> new InvalidClusterId(request.getClusterId()));
+    log.info("Received applyConsumerGroupOffsets request : {}", request);
+    final Map<String, String> config = AppUtils.getClusterConfig(clusterConfig, request.getClusterId());
     return service.applyConsumerGroupMetadata(config, request.getGroupMetadataList());
   }
 }

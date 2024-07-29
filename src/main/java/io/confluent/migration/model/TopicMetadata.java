@@ -1,4 +1,4 @@
-package io.confluent.model;
+package io.confluent.migration.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.kafka.common.acl.AclOperation;

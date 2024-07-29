@@ -2,8 +2,9 @@ package io.confluent.migrationutility.service;
 
 import io.confluent.migrationutility.component.ApplyGroupMetadataTask;
 import io.confluent.migrationutility.component.QueryGroupMetadataTask;
-import io.confluent.migrationutility.model.ConsumerGroupMetadata;
-import io.confluent.migrationutility.model.PostApplyGroupOffsets;
+import io.confluent.migrationutility.exception.GroupServiceException;
+import io.confluent.migrationutility.model.group.ConsumerGroupMetadata;
+import io.confluent.migrationutility.model.group.PostApplyGroupOffsets;
 import io.confluent.migrationutility.util.AdminClientUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -35,16 +36,23 @@ public class GroupService {
     freeConsumerConfig.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "1");
 
     final List<Future<ConsumerGroupMetadata>> futures = new ArrayList<>();
-    for (final String group : cgOffsetMap.keySet()) {
-      futures.add(executorService.submit(new QueryGroupMetadataTask(group, freeConsumerConfig, cgOffsetMap.get(group))));
+    for (final Map.Entry<String, Map<TopicPartition, OffsetAndMetadata>> entry : cgOffsetMap.entrySet()) {
+      futures.add(
+              executorService.submit(
+                      new QueryGroupMetadataTask(entry.getKey(), freeConsumerConfig, entry.getValue())
+              )
+      );
     }
 
     for (final Future<ConsumerGroupMetadata> future : futures) {
       try {
         consumerGroupMetadataList.add(future.get());
       } catch (ExecutionException | InterruptedException e) {
-        log.error("Error retrieving consumer group metadata", e);
+        log.error("Unexpected thread exception while querying group metadata: {}", e.getMessage(), e);
         Thread.currentThread().interrupt();
+      } catch (final Exception e) {
+        log.error("Unexpected exception while querying group metadata: {}", e.getMessage(), e);
+        throw new GroupServiceException(e);
       }
     }
     return consumerGroupMetadataList;
@@ -63,8 +71,11 @@ public class GroupService {
       try {
         postApplyGroupOffsets.add(future.get());
       } catch (ExecutionException | InterruptedException e) {
-        log.error("Error applying consumer group offset reset : {}", e.getMessage(), e);
+        log.error("Unexpected thread exception while applying consumer group offset reset : {}", e.getMessage(), e);
         Thread.currentThread().interrupt();
+      } catch (final Exception e) {
+        log.error("Unexpected exception while applying consumer group offset reset : {}", e.getMessage(), e);
+        throw new GroupServiceException(e);
       }
     }
     return postApplyGroupOffsets;

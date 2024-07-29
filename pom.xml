@@ -10,94 +10,113 @@
         <version>2.7.10</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
+    <packaging>jar</packaging>
 
-    <groupId>io.confluent.translation</groupId>
+    <groupId>io.confluent</groupId>
     <artifactId>MigrationUtility</artifactId>
-    <version>1</version>
+    <version>1.0.0</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <jdk.version>1.8</jdk.version>
-        <packaging>jar</packaging>
-
         <java.version>11</java.version>
-        <slf4j-api.version>1.7.6</slf4j-api.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <gson.version>2.2.4</gson.version>
-        <schemaRegistryUrl>https://psrc-vn38j.us-east-2.aws.confluent.cloud</schemaRegistryUrl>
-        <schemaRegistryBasicAuthUserInfo>username:secret</schemaRegistryBasicAuthUserInfo>
-        <kafka-client.version>3.4.1</kafka-client.version>
 
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-doc.version>1.8.0</spring-doc.version>
+        <kafka-client.version>3.4.1</kafka-client.version>
+        <commons-io.version>2.12.0</commons-io.version>
+        <slf4j.version>2.0.11</slf4j.version>
+        <jcabi-log.version>0.22.0</jcabi-log.version>
+        <spring-tc.version>3.2.7</spring-tc.version>
+        <jupiter.version>1.19.8</jupiter.version>
+        <awaitility.version>4.2.0</awaitility.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-logging</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
-
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-ui</artifactId>
-            <version>1.8.0</version>
+            <version>${spring-doc.version}</version>
         </dependency>
-
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
-
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <version>${kafka-client.version}</version>
         </dependency>
-
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
             <groupId>commons-io</groupId>
             <artifactId>commons-io</artifactId>
-            <version>2.12.0</version>
+            <version>${commons-io.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>ch.qos.reload4j</groupId>
+                    <artifactId>reload4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.jcabi</groupId>
+            <artifactId>jcabi-log</artifactId>
+            <version>${jcabi-log.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
-            <version>2.7.10</version>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-testcontainers</artifactId>
             <scope>test</scope>
-            <version>3.2.7</version>
+            <version>${spring-tc.version}</version>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
-            <version>1.19.8</version>
+            <version>${jupiter.version}</version>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>kafka</artifactId>
             <scope>test</scope>
-            <version>1.19.8</version>
+            <version>${jupiter.version}</version>
         </dependency>
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
-            <version>4.2.0</version>
+            <version>${awaitility.version}</version>
             <scope>test</scope>
         </dependency>
-
-
-
-
     </dependencies>
+
     <build>
         <plugins>
             <plugin>
@@ -142,50 +161,6 @@
                         </manifest>
                     </archive>
                 </configuration>
-            </plugin>
-<!--            <plugin>-->
-<!--                <groupId>io.confluent</groupId>-->
-<!--                <artifactId>kafka-schema-registry-maven-plugin</artifactId>-->
-<!--                <version>7.1.1</version>-->
-<!--                <configuration>-->
-<!--                    <schemaRegistryUrls>-->
-<!--                        <param>${schemaRegistryUrl}</param>-->
-<!--                    </schemaRegistryUrls>-->
-<!--                    <userInfoConfig>${schemaRegistryBasicAuthUserInfo}</userInfoConfig>-->
-<!--                    <outputDirectory>${project.basedir}/src/main/resources</outputDirectory>-->
-<!--                    <subjectPatterns>-->
-<!--                        <param>^connector_topic-(key|value)$</param>-->
-<!--                    </subjectPatterns>-->
-<!--                    <subjects/>-->
-<!--                </configuration>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <id>avro-resources</id>-->
-<!--                        <phase>process-resources</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>download</goal>-->
-<!--                        </goals>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-clean-plugin</artifactId>
-                <version>3.2.0</version>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
-                <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
             </plugin>
         </plugins>
     </build>
